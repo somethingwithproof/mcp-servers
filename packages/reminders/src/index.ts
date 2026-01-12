@@ -145,9 +145,30 @@ interface Reminder {
   completed: boolean;
   dueDate: string;
   priority: number;
+  priorityName: string;
   list: string;
   creationDate: string;
   modificationDate: string;
+  url: string;
+  flagged: boolean;
+}
+
+// Priority helpers
+function getPriorityName(priority: number): string {
+  if (priority === 0) return "none";
+  if (priority >= 1 && priority <= 4) return "high";
+  if (priority === 5) return "medium";
+  return "low";
+}
+
+function getPriorityValue(name: string): number {
+  switch (name.toLowerCase()) {
+    case "high": return 1;
+    case "medium": return 5;
+    case "low": return 9;
+    case "none": return 0;
+    default: return 0;
+  }
 }
 
 async function getReminders(
@@ -194,6 +215,7 @@ async function getReminders(
         set rListName to name of container of r
         set rCreation to creation date of r
         set rMod to modification date of r
+        set rFlagged to flagged of r
 
         -- Escape special characters in strings
         set rName to my replaceText(rName, "\\\\", "\\\\\\\\")
@@ -210,6 +232,7 @@ async function getReminders(
         set output to output & "\\"completed\\":" & rCompleted & ","
         set output to output & "\\"dueDate\\":\\"" & rDueDateStr & "\\","
         set output to output & "\\"priority\\":" & rPriority & ","
+        set output to output & "\\"flagged\\":" & rFlagged & ","
         set output to output & "\\"list\\":\\"" & rListName & "\\","
         set output to output & "\\"creationDate\\":\\"" & (rCreation as «class isot» as string) & "\\","
         set output to output & "\\"modificationDate\\":\\"" & (rMod as «class isot» as string) & "\\"}"
@@ -234,6 +257,9 @@ async function getReminders(
     dueDate: r.dueDate ? formatISODate(r.dueDate) : "",
     creationDate: formatISODate(r.creationDate),
     modificationDate: formatISODate(r.modificationDate),
+    priorityName: getPriorityName(r.priority),
+    url: r.url || "",
+    flagged: r.flagged || false,
   }));
 }
 
@@ -242,9 +268,11 @@ async function createReminder(options: {
   body?: string;
   list?: string;
   dueDate?: string;
-  priority?: number;
+  priority?: number | string;
+  url?: string;
+  flagged?: boolean;
 }): Promise<{ success: boolean; id?: string; error?: string }> {
-  const { name, body, list, dueDate, priority } = options;
+  const { name, body, list, dueDate, priority, url, flagged } = options;
 
   const escapedName = name.replace(/"/g, '\\"');
   const escapedBody = body?.replace(/"/g, '\\"') || "";
@@ -261,8 +289,16 @@ async function createReminder(options: {
   }
 
   let priorityLine = "";
-  if (priority !== undefined && priority >= 0 && priority <= 9) {
-    priorityLine = `set priority of newReminder to ${priority}`;
+  if (priority !== undefined) {
+    const priorityNum = typeof priority === "string" ? getPriorityValue(priority) : priority;
+    if (priorityNum >= 0 && priorityNum <= 9) {
+      priorityLine = `set priority of newReminder to ${priorityNum}`;
+    }
+  }
+
+  let flaggedLine = "";
+  if (flagged !== undefined) {
+    flaggedLine = `set flagged of newReminder to ${flagged}`;
   }
 
   const script = `
@@ -270,6 +306,7 @@ async function createReminder(options: {
       set newReminder to make new reminder in ${listTarget} with properties {name:"${escapedName}", body:"${escapedBody}"}
       ${dueDateLine}
       ${priorityLine}
+      ${flaggedLine}
       return id of newReminder
     end tell
   `;
@@ -344,10 +381,11 @@ async function updateReminder(
     name?: string;
     body?: string;
     dueDate?: string | null;
-    priority?: number;
+    priority?: number | string;
+    flagged?: boolean;
   }
 ): Promise<{ success: boolean; error?: string }> {
-  const { name, body, dueDate, priority } = updates;
+  const { name, body, dueDate, priority, flagged } = updates;
 
   let updateLines: string[] = [];
 
@@ -365,8 +403,14 @@ async function updateReminder(
       updateLines.push(`set due date of theReminder to date "${formatDateForAppleScript(date)}"`);
     }
   }
-  if (priority !== undefined && priority >= 0 && priority <= 9) {
-    updateLines.push(`set priority of theReminder to ${priority}`);
+  if (priority !== undefined) {
+    const priorityNum = typeof priority === "string" ? getPriorityValue(priority) : priority;
+    if (priorityNum >= 0 && priorityNum <= 9) {
+      updateLines.push(`set priority of theReminder to ${priorityNum}`);
+    }
+  }
+  if (flagged !== undefined) {
+    updateLines.push(`set flagged of theReminder to ${flagged}`);
   }
 
   if (updateLines.length === 0) {
@@ -704,6 +748,232 @@ async function getUpcoming(days: number = 7): Promise<Reminder[]> {
 }
 
 // ============================================================================
+// List Management
+// ============================================================================
+
+async function createList(name: string): Promise<{ success: boolean; id?: string; error?: string }> {
+  const escapedName = name.replace(/"/g, '\\"');
+
+  const script = `
+    tell application "Reminders"
+      set newList to make new list with properties {name:"${escapedName}"}
+      return id of newList
+    end tell
+  `;
+
+  try {
+    const id = await runAppleScript(script);
+    return { success: true, id };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function deleteList(listName: string): Promise<{ success: boolean; error?: string }> {
+  const escapedName = listName.replace(/"/g, '\\"');
+
+  const script = `
+    tell application "Reminders"
+      delete list "${escapedName}"
+      return "done"
+    end tell
+  `;
+
+  try {
+    await runAppleScript(script);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ============================================================================
+// Batch Operations
+// ============================================================================
+
+interface BulkReminderInput {
+  name: string;
+  body?: string;
+  dueDate?: string;
+  priority?: number | string;
+  flagged?: boolean;
+}
+
+async function bulkCreateReminders(
+  reminders: BulkReminderInput[],
+  list?: string
+): Promise<{ success: boolean; created: number; errors: string[] }> {
+  const results = { success: true, created: 0, errors: [] as string[] };
+
+  for (const reminder of reminders) {
+    const result = await createReminder({
+      name: reminder.name,
+      body: reminder.body,
+      list,
+      dueDate: reminder.dueDate,
+      priority: reminder.priority,
+      flagged: reminder.flagged,
+    });
+
+    if (result.success) {
+      results.created++;
+    } else {
+      results.errors.push(`Failed to create "${reminder.name}": ${result.error}`);
+    }
+  }
+
+  results.success = results.errors.length === 0;
+  return results;
+}
+
+async function bulkCompleteReminders(
+  reminderIds: string[]
+): Promise<{ success: boolean; completed: number; errors: string[] }> {
+  const results = { success: true, completed: 0, errors: [] as string[] };
+
+  for (const id of reminderIds) {
+    const result = await completeReminder(id);
+    if (result.success) {
+      results.completed++;
+    } else {
+      results.errors.push(`Failed to complete ${id}: ${result.error}`);
+    }
+  }
+
+  results.success = results.errors.length === 0;
+  return results;
+}
+
+async function bulkDeleteReminders(
+  reminderIds: string[]
+): Promise<{ success: boolean; deleted: number; errors: string[] }> {
+  const results = { success: true, deleted: 0, errors: [] as string[] };
+
+  for (const id of reminderIds) {
+    const result = await deleteReminder(id);
+    if (result.success) {
+      results.deleted++;
+    } else {
+      results.errors.push(`Failed to delete ${id}: ${result.error}`);
+    }
+  }
+
+  results.success = results.errors.length === 0;
+  return results;
+}
+
+// ============================================================================
+// Flagged & Open
+// ============================================================================
+
+async function getFlagged(): Promise<Reminder[]> {
+  const script = `
+    tell application "Reminders"
+      set output to "["
+      set matchCount to 0
+      repeat with theList in lists
+        set allReminders to reminders whose flagged is true and completed is false in theList
+        repeat with r in allReminders
+          set rId to id of r
+          set rName to name of r
+          set rBody to body of r
+          if rBody is missing value then set rBody to ""
+          set rCompleted to completed of r
+          set rDueDate to due date of r
+          if rDueDate is missing value then
+            set rDueDateStr to ""
+          else
+            set rDueDateStr to (rDueDate as «class isot» as string)
+          end if
+          set rPriority to priority of r
+          set rListName to name of container of r
+          set rCreation to creation date of r
+          set rMod to modification date of r
+          set rFlagged to flagged of r
+
+          set rName to my replaceText(rName, "\\\\", "\\\\\\\\")
+          set rName to my replaceText(rName, "\\"", "\\\\\\"")
+          set rName to my replaceText(rName, return, "\\\\n")
+          set rBody to my replaceText(rBody, "\\\\", "\\\\\\\\")
+          set rBody to my replaceText(rBody, "\\"", "\\\\\\"")
+          set rBody to my replaceText(rBody, return, "\\\\n")
+
+          if matchCount > 0 then set output to output & ","
+          set output to output & "{\\"id\\":\\"" & rId & "\\","
+          set output to output & "\\"name\\":\\"" & rName & "\\","
+          set output to output & "\\"body\\":\\"" & rBody & "\\","
+          set output to output & "\\"completed\\":" & rCompleted & ","
+          set output to output & "\\"dueDate\\":\\"" & rDueDateStr & "\\","
+          set output to output & "\\"priority\\":" & rPriority & ","
+          set output to output & "\\"flagged\\":" & rFlagged & ","
+          set output to output & "\\"list\\":\\"" & rListName & "\\","
+          set output to output & "\\"creationDate\\":\\"" & (rCreation as «class isot» as string) & "\\","
+          set output to output & "\\"modificationDate\\":\\"" & (rMod as «class isot» as string) & "\\"}"
+          set matchCount to matchCount + 1
+        end repeat
+      end repeat
+      set output to output & "]"
+      return output
+    end tell
+
+    on replaceText(theText, searchStr, replaceStr)
+      set AppleScript's text item delimiters to searchStr
+      set theItems to text items of theText
+      set AppleScript's text item delimiters to replaceStr
+      set theText to theItems as text
+      set AppleScript's text item delimiters to ""
+      return theText
+    end replaceText
+  `;
+
+  const reminders = await runAppleScriptJSON<Reminder[]>(script);
+  return reminders.map((r) => ({
+    ...r,
+    dueDate: r.dueDate ? formatISODate(r.dueDate) : "",
+    creationDate: formatISODate(r.creationDate),
+    modificationDate: formatISODate(r.modificationDate),
+    priorityName: getPriorityName(r.priority),
+    url: r.url || "",
+    flagged: r.flagged || false,
+  }));
+}
+
+async function openReminder(reminderId: string): Promise<{ success: boolean; error?: string }> {
+  // Open the Reminders app and try to show the reminder
+  const script = `
+    tell application "Reminders"
+      activate
+    end tell
+  `;
+
+  try {
+    await runAppleScript(script);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function openList(listName: string): Promise<{ success: boolean; error?: string }> {
+  const escapedName = listName.replace(/"/g, '\\"');
+
+  const script = `
+    tell application "Reminders"
+      activate
+      set theList to list "${escapedName}"
+      show theList
+    end tell
+  `;
+
+  try {
+    await runAppleScript(script);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ============================================================================
 // Tool Definitions
 // ============================================================================
 
@@ -749,7 +1019,8 @@ const tools: Tool[] = [
         body: { type: "string", description: "Optional notes/description for the reminder" },
         list: { type: "string", description: "List to add the reminder to (uses default if not specified)" },
         due_date: { type: "string", description: "Due date in ISO 8601 format (e.g., 2024-12-25T10:00:00)" },
-        priority: { type: "number", description: "Priority level: 0 (none), 1-4 (high), 5 (medium), 6-9 (low)" },
+        priority: { type: "string", description: "Priority: 'high', 'medium', 'low', or 'none' (or number 0-9)" },
+        flagged: { type: "boolean", description: "Whether the reminder should be flagged" },
       },
       required: ["name"],
     },
@@ -797,7 +1068,8 @@ const tools: Tool[] = [
         name: { type: "string", description: "New title/name for the reminder" },
         body: { type: "string", description: "New notes/description" },
         due_date: { type: "string", description: "New due date (ISO 8601) or null to remove" },
-        priority: { type: "number", description: "New priority level (0-9)" },
+        priority: { type: "string", description: "Priority: 'high', 'medium', 'low', or 'none' (or number 0-9)" },
+        flagged: { type: "boolean", description: "Whether the reminder should be flagged" },
       },
       required: ["reminder_id"],
     },
@@ -844,6 +1116,115 @@ const tools: Tool[] = [
       required: [],
     },
   },
+  {
+    name: "reminders_get_flagged",
+    description: "Get all flagged incomplete reminders across all lists.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "reminders_create_list",
+    description: "Create a new reminder list.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Name for the new list" },
+      },
+      required: ["name"],
+    },
+  },
+  {
+    name: "reminders_delete_list",
+    description: "Delete a reminder list and all its reminders.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Name of the list to delete" },
+      },
+      required: ["name"],
+    },
+  },
+  {
+    name: "reminders_bulk_create",
+    description: "Create multiple reminders at once in a single list.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        reminders: {
+          type: "array",
+          description: "Array of reminder objects with name, body, dueDate, priority, flagged",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "Reminder title" },
+              body: { type: "string", description: "Notes/description" },
+              dueDate: { type: "string", description: "Due date (ISO 8601)" },
+              priority: { type: "string", description: "Priority: high/medium/low/none" },
+              flagged: { type: "boolean", description: "Flagged status" },
+            },
+            required: ["name"],
+          },
+        },
+        list: { type: "string", description: "Target list name (optional)" },
+      },
+      required: ["reminders"],
+    },
+  },
+  {
+    name: "reminders_bulk_complete",
+    description: "Mark multiple reminders as completed at once.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        reminder_ids: {
+          type: "array",
+          description: "Array of reminder IDs to complete",
+          items: { type: "string" },
+        },
+      },
+      required: ["reminder_ids"],
+    },
+  },
+  {
+    name: "reminders_bulk_delete",
+    description: "Delete multiple reminders at once.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        reminder_ids: {
+          type: "array",
+          description: "Array of reminder IDs to delete",
+          items: { type: "string" },
+        },
+      },
+      required: ["reminder_ids"],
+    },
+  },
+  {
+    name: "reminders_open",
+    description: "Open the Reminders app.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        reminder_id: { type: "string", description: "Optional reminder ID (opens app)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "reminders_open_list",
+    description: "Open a specific list in the Reminders app.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Name of the list to open" },
+      },
+      required: ["name"],
+    },
+  },
 ];
 
 // ============================================================================
@@ -878,6 +1259,7 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
         list: args.list,
         dueDate: args.due_date,
         priority: args.priority,
+        flagged: args.flagged,
       });
       return JSON.stringify(result, null, 2);
     }
@@ -907,6 +1289,7 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
         body: args.body,
         dueDate: args.due_date,
         priority: args.priority,
+        flagged: args.flagged,
       });
       return JSON.stringify(result, null, 2);
     }
@@ -935,6 +1318,58 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
       return JSON.stringify(reminders, null, 2);
     }
 
+    case "reminders_get_flagged": {
+      const reminders = await getFlagged();
+      return JSON.stringify(reminders, null, 2);
+    }
+
+    case "reminders_create_list": {
+      if (!args.name) throw new Error("name is required");
+      const result = await createList(args.name);
+      return JSON.stringify(result, null, 2);
+    }
+
+    case "reminders_delete_list": {
+      if (!args.name) throw new Error("name is required");
+      const result = await deleteList(args.name);
+      return JSON.stringify(result, null, 2);
+    }
+
+    case "reminders_bulk_create": {
+      if (!args.reminders || !Array.isArray(args.reminders)) {
+        throw new Error("reminders array is required");
+      }
+      const result = await bulkCreateReminders(args.reminders, args.list);
+      return JSON.stringify(result, null, 2);
+    }
+
+    case "reminders_bulk_complete": {
+      if (!args.reminder_ids || !Array.isArray(args.reminder_ids)) {
+        throw new Error("reminder_ids array is required");
+      }
+      const result = await bulkCompleteReminders(args.reminder_ids);
+      return JSON.stringify(result, null, 2);
+    }
+
+    case "reminders_bulk_delete": {
+      if (!args.reminder_ids || !Array.isArray(args.reminder_ids)) {
+        throw new Error("reminder_ids array is required");
+      }
+      const result = await bulkDeleteReminders(args.reminder_ids);
+      return JSON.stringify(result, null, 2);
+    }
+
+    case "reminders_open": {
+      const result = await openReminder(args.reminder_id || "");
+      return JSON.stringify(result, null, 2);
+    }
+
+    case "reminders_open_list": {
+      if (!args.name) throw new Error("name is required");
+      const result = await openList(args.name);
+      return JSON.stringify(result, null, 2);
+    }
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -946,7 +1381,7 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
 
 async function main() {
   const server = new Server(
-    { name: "reminders-mcp", version: "1.0.0" },
+    { name: "reminders-mcp", version: "2.0.0" },
     { capabilities: { tools: {} } }
   );
 
@@ -969,7 +1404,7 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  console.error("Reminders MCP server v1.0.0 running on stdio");
+  console.error("Reminders MCP server v2.0.0 running on stdio");
 }
 
 main().catch((error) => {
