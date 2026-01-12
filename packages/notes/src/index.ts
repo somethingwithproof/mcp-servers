@@ -490,6 +490,163 @@ async function searchNotes(
   return runAppleScriptJSON<Note[]>(script);
 }
 
+// ============================================================================
+// Folder Management
+// ============================================================================
+
+async function createFolder(name: string, account?: string): Promise<{ success: boolean; error?: string }> {
+  const escapedName = name.replace(/"/g, '\\"');
+  const accountTarget = account
+    ? `account "${account.replace(/"/g, '\\"')}"`
+    : "default account";
+
+  const script = `
+    tell application "Notes"
+      make new folder at ${accountTarget} with properties {name:"${escapedName}"}
+      return "done"
+    end tell
+  `;
+
+  try {
+    await runAppleScript(script);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ============================================================================
+// Open in Notes App
+// ============================================================================
+
+async function openNotes(): Promise<{ success: boolean; error?: string }> {
+  const script = `
+    tell application "Notes"
+      activate
+    end tell
+  `;
+
+  try {
+    await runAppleScript(script);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function openNote(noteId: string): Promise<{ success: boolean; error?: string }> {
+  const script = `
+    tell application "Notes"
+      set theNote to note id "${noteId.replace(/"/g, '\\"')}"
+      show theNote
+      activate
+    end tell
+  `;
+
+  try {
+    await runAppleScript(script);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function openFolder(folderName: string, account?: string): Promise<{ success: boolean; error?: string }> {
+  const accountTarget = account
+    ? `account "${account.replace(/"/g, '\\"')}"`
+    : "first account";
+
+  const script = `
+    tell application "Notes"
+      set theFolder to folder "${folderName.replace(/"/g, '\\"')}" of ${accountTarget}
+      show theFolder
+      activate
+    end tell
+  `;
+
+  try {
+    await runAppleScript(script);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ============================================================================
+// Advanced Search with Relevance
+// ============================================================================
+
+interface SearchResult extends Note {
+  relevanceScore: number;
+  matchedIn: string[];
+}
+
+async function searchNotesAdvanced(
+  query: string,
+  options: { folder?: string; account?: string; limit?: number } = {}
+): Promise<SearchResult[]> {
+  const { folder, account, limit = 50 } = options;
+
+  // Get all matching notes using keyword search
+  const notes = await searchNotes(query, { folder, account, limit: limit * 2 });
+
+  // Calculate relevance scores
+  const queryTerms = query.toLowerCase().split(/\s+/).filter(t => t.length > 1);
+
+  const results: SearchResult[] = notes.map(note => {
+    const name = note.name.toLowerCase();
+    const content = note.plaintext.toLowerCase();
+    let score = 0;
+    const matchedIn: string[] = [];
+
+    for (const term of queryTerms) {
+      // Title matches are worth more
+      const titleMatches = (name.match(new RegExp(term, 'gi')) || []).length;
+      if (titleMatches > 0) {
+        score += titleMatches * 3;
+        if (!matchedIn.includes('title')) matchedIn.push('title');
+      }
+
+      // Content matches
+      const contentMatches = (content.match(new RegExp(term, 'gi')) || []).length;
+      if (contentMatches > 0) {
+        score += contentMatches;
+        if (!matchedIn.includes('content')) matchedIn.push('content');
+      }
+
+      // Exact phrase bonus
+      if (name.includes(query.toLowerCase())) {
+        score += 10;
+      }
+      if (content.includes(query.toLowerCase())) {
+        score += 5;
+      }
+    }
+
+    // Recency bonus (notes modified in last 7 days get a boost)
+    const modDate = new Date(note.modificationDate);
+    const daysSinceModified = (Date.now() - modDate.getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSinceModified < 7) {
+      score += Math.max(0, (7 - daysSinceModified) / 7) * 2;
+    }
+
+    return {
+      ...note,
+      relevanceScore: Math.round(score * 100) / 100,
+      matchedIn,
+    };
+  });
+
+  // Sort by relevance and return top results
+  return results
+    .sort((a, b) => b.relevanceScore - a.relevanceScore)
+    .slice(0, limit);
+}
+
+// ============================================================================
+// Recent Notes (with better performance)
+// ============================================================================
+
 async function getRecentNotes(limit: number = 20): Promise<Note[]> {
   const script = `
     tell application "Notes"
@@ -690,6 +847,64 @@ const tools: Tool[] = [
       required: ["query"],
     },
   },
+  {
+    name: "notes_search_advanced",
+    description: "Search notes with relevance scoring. Returns results ranked by match quality.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Text to search for" },
+        folder: { type: "string", description: "Limit search to folder (optional)" },
+        account: { type: "string", description: "Limit search to account (optional)" },
+        limit: { type: "number", description: "Maximum results (default: 50)" },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "notes_create_folder",
+    description: "Create a new folder in Notes.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Folder name" },
+        account: { type: "string", description: "Account to create folder in (optional)" },
+      },
+      required: ["name"],
+    },
+  },
+  {
+    name: "notes_open",
+    description: "Open the Notes app.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "notes_open_note",
+    description: "Open a specific note in the Notes app.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        note_id: { type: "string", description: "The note ID to open" },
+      },
+      required: ["note_id"],
+    },
+  },
+  {
+    name: "notes_open_folder",
+    description: "Open a specific folder in the Notes app.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Folder name to open" },
+        account: { type: "string", description: "Account containing the folder (optional)" },
+      },
+      required: ["name"],
+    },
+  },
 ];
 
 // ============================================================================
@@ -778,6 +993,39 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
       return JSON.stringify(notes, null, 2);
     }
 
+    case "notes_search_advanced": {
+      if (!args.query) throw new Error("query is required");
+      const results = await searchNotesAdvanced(args.query, {
+        folder: args.folder,
+        account: args.account,
+        limit: args.limit,
+      });
+      return JSON.stringify(results, null, 2);
+    }
+
+    case "notes_create_folder": {
+      if (!args.name) throw new Error("name is required");
+      const result = await createFolder(args.name, args.account);
+      return JSON.stringify(result, null, 2);
+    }
+
+    case "notes_open": {
+      const result = await openNotes();
+      return JSON.stringify(result, null, 2);
+    }
+
+    case "notes_open_note": {
+      if (!args.note_id) throw new Error("note_id is required");
+      const result = await openNote(args.note_id);
+      return JSON.stringify(result, null, 2);
+    }
+
+    case "notes_open_folder": {
+      if (!args.name) throw new Error("name is required");
+      const result = await openFolder(args.name, args.account);
+      return JSON.stringify(result, null, 2);
+    }
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -789,7 +1037,7 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
 
 async function main() {
   const server = new Server(
-    { name: "notes-mcp", version: "1.0.0" },
+    { name: "notes-mcp", version: "2.0.0" },
     { capabilities: { tools: {} } }
   );
 
@@ -812,7 +1060,7 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  console.error("Notes MCP server v1.0.0 running on stdio");
+  console.error("Notes MCP server v2.0.0 running on stdio");
 }
 
 main().catch((error) => {
