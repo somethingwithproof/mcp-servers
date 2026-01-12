@@ -555,6 +555,225 @@ async function getUpcomingEvents(days: number = 7): Promise<CalendarEvent[]> {
 }
 
 // ============================================================================
+// Find Available Time
+// ============================================================================
+
+interface TimeSlot {
+  start: string;
+  end: string;
+  durationMinutes: number;
+}
+
+async function findAvailableTime(options: {
+  date: string;
+  durationMinutes: number;
+  startHour?: number;
+  endHour?: number;
+  calendar?: string;
+}): Promise<TimeSlot[]> {
+  const { date, durationMinutes, startHour = 9, endHour = 17, calendar } = options;
+
+  const targetDate = parseDate(date);
+  if (!targetDate) {
+    throw new Error("Invalid date format");
+  }
+
+  // Get events for the target date
+  const dayStart = new Date(targetDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+
+  const events = await getEvents({
+    calendar,
+    startDate: dayStart.toISOString(),
+    endDate: dayEnd.toISOString(),
+  });
+
+  // Build busy times
+  const busyTimes: { start: Date; end: Date }[] = events
+    .filter(e => !e.allDay)
+    .map(e => ({
+      start: new Date(e.startDate),
+      end: new Date(e.endDate),
+    }))
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+  // Find free slots within working hours
+  const workStart = new Date(dayStart);
+  workStart.setHours(startHour, 0, 0, 0);
+  const workEnd = new Date(dayStart);
+  workEnd.setHours(endHour, 0, 0, 0);
+
+  const freeSlots: TimeSlot[] = [];
+  let currentTime = workStart;
+
+  for (const busy of busyTimes) {
+    // Skip events outside working hours
+    if (busy.end <= workStart || busy.start >= workEnd) continue;
+
+    // Clip to working hours
+    const busyStart = new Date(Math.max(busy.start.getTime(), workStart.getTime()));
+    const busyEnd = new Date(Math.min(busy.end.getTime(), workEnd.getTime()));
+
+    // Check for gap before this busy period
+    if (currentTime < busyStart) {
+      const gapMinutes = (busyStart.getTime() - currentTime.getTime()) / (1000 * 60);
+      if (gapMinutes >= durationMinutes) {
+        freeSlots.push({
+          start: currentTime.toISOString(),
+          end: busyStart.toISOString(),
+          durationMinutes: gapMinutes,
+        });
+      }
+    }
+
+    // Move current time past this busy period
+    if (busyEnd > currentTime) {
+      currentTime = busyEnd;
+    }
+  }
+
+  // Check for time after last event
+  if (currentTime < workEnd) {
+    const gapMinutes = (workEnd.getTime() - currentTime.getTime()) / (1000 * 60);
+    if (gapMinutes >= durationMinutes) {
+      freeSlots.push({
+        start: currentTime.toISOString(),
+        end: workEnd.toISOString(),
+        durationMinutes: gapMinutes,
+      });
+    }
+  }
+
+  return freeSlots;
+}
+
+// ============================================================================
+// Recurring Events
+// ============================================================================
+
+type RecurrenceFrequency = "daily" | "weekly" | "monthly" | "yearly";
+
+interface RecurrenceRule {
+  frequency: RecurrenceFrequency;
+  interval?: number;
+  count?: number;
+  until?: string;
+}
+
+async function createRecurringEvent(options: {
+  summary: string;
+  startDate: string;
+  endDate?: string;
+  allDay?: boolean;
+  calendar?: string;
+  description?: string;
+  location?: string;
+  recurrence: RecurrenceRule;
+}): Promise<{ success: boolean; id?: string; error?: string }> {
+  const {
+    summary,
+    startDate,
+    endDate,
+    allDay = false,
+    calendar,
+    description,
+    location,
+    recurrence,
+  } = options;
+
+  const start = parseDate(startDate);
+  if (!start) {
+    return { success: false, error: "Invalid start date" };
+  }
+
+  const end = endDate
+    ? parseDate(endDate)
+    : new Date(start.getTime() + (allDay ? 24 * 60 * 60 * 1000 : 60 * 60 * 1000));
+
+  if (!end) {
+    return { success: false, error: "Invalid end date" };
+  }
+
+  const escapedSummary = summary.replace(/"/g, '\\"');
+  const escapedDesc = description?.replace(/"/g, '\\"') || "";
+  const escapedLoc = location?.replace(/"/g, '\\"') || "";
+
+  const calendarTarget = calendar
+    ? `calendar "${calendar.replace(/"/g, '\\"')}"`
+    : "first calendar";
+
+  // Build recurrence string for AppleScript
+  const freqMap: Record<RecurrenceFrequency, string> = {
+    daily: "daily",
+    weekly: "weekly",
+    monthly: "monthly",
+    yearly: "yearly",
+  };
+
+  const interval = recurrence.interval || 1;
+  const recurrenceStr = `${freqMap[recurrence.frequency]}`;
+
+  const script = `
+    tell application "Calendar"
+      set newEvent to make new event at end of events of ${calendarTarget} with properties {summary:"${escapedSummary}", start date:date "${formatDateForAppleScript(start)}", end date:date "${formatDateForAppleScript(end)}", allday event:${allDay}}
+      ${description ? `set description of newEvent to "${escapedDesc}"` : ""}
+      ${location ? `set location of newEvent to "${escapedLoc}"` : ""}
+      set recurrence of newEvent to "FREQ=${recurrence.frequency.toUpperCase()};INTERVAL=${interval}${recurrence.count ? `;COUNT=${recurrence.count}` : ""}${recurrence.until ? `;UNTIL=${recurrence.until.replace(/[-:]/g, "").replace("T", "").substring(0, 15)}Z` : ""}"
+      return uid of newEvent
+    end tell
+  `;
+
+  try {
+    const id = await runAppleScript(script);
+    return { success: true, id };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ============================================================================
+// Open in Calendar App
+// ============================================================================
+
+async function openCalendar(): Promise<{ success: boolean; error?: string }> {
+  const script = `
+    tell application "Calendar"
+      activate
+    end tell
+  `;
+
+  try {
+    await runAppleScript(script);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function openCalendarOnDate(date: string): Promise<{ success: boolean; error?: string }> {
+  const targetDate = parseDate(date);
+  if (!targetDate) {
+    return { success: false, error: "Invalid date" };
+  }
+
+  const script = `
+    tell application "Calendar"
+      activate
+      view calendar at date "${formatDateForAppleScript(targetDate)}"
+    end tell
+  `;
+
+  try {
+    await runAppleScript(script);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ============================================================================
 // Tool Definitions
 // ============================================================================
 
@@ -672,6 +891,62 @@ const tools: Tool[] = [
       required: [],
     },
   },
+  {
+    name: "calendar_find_free_time",
+    description: "Find available time slots on a given date. Great for scheduling meetings.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        date: { type: "string", description: "Date to find free time (ISO 8601)" },
+        duration_minutes: { type: "number", description: "Minimum duration needed in minutes" },
+        start_hour: { type: "number", description: "Start of working hours (default: 9)" },
+        end_hour: { type: "number", description: "End of working hours (default: 17)" },
+        calendar: { type: "string", description: "Specific calendar to check (optional)" },
+      },
+      required: ["date", "duration_minutes"],
+    },
+  },
+  {
+    name: "calendar_create_recurring_event",
+    description: "Create a recurring calendar event (daily, weekly, monthly, yearly).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        summary: { type: "string", description: "Event title" },
+        start_date: { type: "string", description: "Start date/time in ISO 8601 format" },
+        end_date: { type: "string", description: "End date/time (default: 1 hour after start)" },
+        all_day: { type: "boolean", description: "Is this an all-day event?" },
+        calendar: { type: "string", description: "Calendar to add event to" },
+        description: { type: "string", description: "Event description" },
+        location: { type: "string", description: "Event location" },
+        frequency: { type: "string", description: "Recurrence: 'daily', 'weekly', 'monthly', or 'yearly'" },
+        interval: { type: "number", description: "Interval between occurrences (default: 1)" },
+        count: { type: "number", description: "Number of occurrences (optional)" },
+        until: { type: "string", description: "End date for recurrence (ISO 8601, optional)" },
+      },
+      required: ["summary", "start_date", "frequency"],
+    },
+  },
+  {
+    name: "calendar_open",
+    description: "Open the Calendar app.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "calendar_open_date",
+    description: "Open the Calendar app and navigate to a specific date.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        date: { type: "string", description: "Date to view (ISO 8601)" },
+      },
+      required: ["date"],
+    },
+  },
 ];
 
 // ============================================================================
@@ -759,6 +1034,57 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
       return JSON.stringify(events, null, 2);
     }
 
+    case "calendar_find_free_time": {
+      if (!args.date || !args.duration_minutes) {
+        throw new Error("date and duration_minutes are required");
+      }
+      const slots = await findAvailableTime({
+        date: args.date,
+        durationMinutes: args.duration_minutes,
+        startHour: args.start_hour,
+        endHour: args.end_hour,
+        calendar: args.calendar,
+      });
+      return JSON.stringify(slots, null, 2);
+    }
+
+    case "calendar_create_recurring_event": {
+      if (!args.summary || !args.start_date || !args.frequency) {
+        throw new Error("summary, start_date, and frequency are required");
+      }
+      const validFreqs = ["daily", "weekly", "monthly", "yearly"];
+      if (!validFreqs.includes(args.frequency)) {
+        throw new Error("frequency must be: daily, weekly, monthly, or yearly");
+      }
+      const result = await createRecurringEvent({
+        summary: args.summary,
+        startDate: args.start_date,
+        endDate: args.end_date,
+        allDay: args.all_day,
+        calendar: args.calendar,
+        description: args.description,
+        location: args.location,
+        recurrence: {
+          frequency: args.frequency as RecurrenceFrequency,
+          interval: args.interval,
+          count: args.count,
+          until: args.until,
+        },
+      });
+      return JSON.stringify(result, null, 2);
+    }
+
+    case "calendar_open": {
+      const result = await openCalendar();
+      return JSON.stringify(result, null, 2);
+    }
+
+    case "calendar_open_date": {
+      if (!args.date) throw new Error("date is required");
+      const result = await openCalendarOnDate(args.date);
+      return JSON.stringify(result, null, 2);
+    }
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -770,7 +1096,7 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
 
 async function main() {
   const server = new Server(
-    { name: "calendar-mcp", version: "1.0.0" },
+    { name: "calendar-mcp", version: "2.0.0" },
     { capabilities: { tools: {} } }
   );
 
@@ -793,7 +1119,7 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  console.error("Calendar MCP server v1.0.0 running on stdio");
+  console.error("Calendar MCP server v2.0.0 running on stdio");
 }
 
 main().catch((error) => {
