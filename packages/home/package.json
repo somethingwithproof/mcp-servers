@@ -1,0 +1,41 @@
+{
+  "name": "home-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Apple Home on macOS - control HomeKit devices, scenes, and automations via the Model Context Protocol",
+  "main": "dist/index.js",
+  "type": "module",
+  "bin": {
+    "home-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "apple-home",
+    "homekit",
+    "smart-home",
+    "macos",
+    "model-context-protocol",
+    "ai",
+    "claude"
+  ],
+  "author": "Thomas Vincent",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist"
+  ]
+}
