@@ -1,6 +1,6 @@
 {
   "name": "ichat-mcp",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "MCP server for Apple Messages (iChat) - read and send messages via the Model Context Protocol",
   "main": "dist/index.js",
   "type": "module",

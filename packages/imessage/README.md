@@ -1,21 +1,43 @@
 # iChat MCP Server
 
-A Model Context Protocol (MCP) server that provides access to Apple Messages (iChat) on macOS. This allows AI assistants like Claude to read and send messages through the native Messages app.
+A comprehensive Model Context Protocol (MCP) server for Apple Messages (iChat) on macOS. Provides AI assistants like Claude with full access to read, search, and send messages through the native Messages app.
 
 ## Features
 
-- **Read Recent Messages** - Get the latest messages across all conversations
-- **List Conversations** - View all your chat threads with message counts
-- **Get Chat History** - Retrieve messages from a specific conversation
-- **Search Messages** - Find messages containing specific text
-- **Send Messages** - Send new messages via iMessage or SMS
-- **List Contacts** - View contacts you've messaged with
+### Core Messaging
+- **Read Recent Messages** - Get latest messages with contact names and read receipts
+- **List Conversations** - View all chats with message counts and previews
+- **Get Chat History** - Retrieve messages from specific conversations
+- **Send Messages** - Send via iMessage with automatic SMS fallback
+- **Group Chat Support** - Full support for group conversations with participant names
+
+### Advanced Search
+- **Text Search** - Search with date range and contact filters
+- **Semantic Search** - Find messages by meaning/concept using AI embeddings (optional OpenAI API)
+- **Date Filtering** - Filter messages by start/end dates (ISO 8601)
+
+### Contact Integration
+- **Contact Resolution** - Automatically resolves phone numbers to contact names
+- **Contact Lookup** - Look up names from phone numbers or emails
+- **Phone Validation** - Validates and normalizes phone numbers
+
+### Message Details
+- **Attachments** - List and filter attachments by type (images, videos, PDFs)
+- **Reactions/Tapbacks** - Get love, like, laugh, and other reactions on messages
+- **Read Receipts** - Check delivered/read status and timestamps
+- **Message Context** - Get surrounding messages for conversation context
+
+### Utilities
+- **Permission Check** - Verify database, contacts, and automation access
+- **iMessage Check** - Determine if a contact uses iMessage or SMS
 
 ## Requirements
 
-- macOS (tested on macOS 12+)
-- Node.js 18 or later
-- Full Disk Access permission for your terminal app
+- macOS 12 or later
+- Node.js 18+
+- Full Disk Access permission (required)
+- Contacts permission (optional, for name resolution)
+- Automation permission (optional, for sending messages)
 
 ## Installation
 
@@ -36,21 +58,23 @@ npm run build
 
 ## Setup
 
-### 1. Grant Full Disk Access
+### 1. Grant Permissions
 
-The MCP server needs to read the Messages database located at `~/Library/Messages/chat.db`. You must grant Full Disk Access to your terminal application:
+**Full Disk Access** (Required):
+1. Open **System Settings** > **Privacy & Security** > **Full Disk Access**
+2. Add your terminal app (Terminal, iTerm2, VS Code, etc.)
+3. Restart the terminal
 
-1. Open **System Preferences** (or **System Settings** on macOS Ventura+)
-2. Go to **Security & Privacy** > **Privacy** > **Full Disk Access**
-3. Click the lock icon and authenticate
-4. Add your terminal app (Terminal, iTerm2, etc.)
-5. Restart your terminal
+**Contacts** (Optional - for name resolution):
+1. Open **System Settings** > **Privacy & Security** > **Contacts**
+2. Add your terminal app
+
+**Automation** (Optional - for sending messages):
+- Permission is requested automatically when sending the first message
 
 ### 2. Configure Claude Desktop
 
-Add the server to your Claude Desktop configuration file:
-
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ```json
 {
@@ -63,14 +87,17 @@ Add the server to your Claude Desktop configuration file:
 }
 ```
 
-Or if installed from source:
+For semantic search, add your OpenAI API key:
 
 ```json
 {
   "mcpServers": {
     "ichat": {
-      "command": "node",
-      "args": ["/path/to/ichat-mcp/dist/index.js"]
+      "command": "npx",
+      "args": ["-y", "ichat-mcp"],
+      "env": {
+        "OPENAI_API_KEY": "sk-..."
+      }
     }
   }
 }
@@ -78,92 +105,106 @@ Or if installed from source:
 
 ### 3. Restart Claude Desktop
 
-After updating the configuration, restart Claude Desktop to load the MCP server.
-
 ## Available Tools
 
-### `messages_get_recent`
+### Permission & Status
 
-Get recent messages from all conversations.
+| Tool | Description |
+|------|-------------|
+| `messages_check_permissions` | Check access to Messages database, Contacts, and Automation |
+| `messages_check_imessage` | Check if a recipient uses iMessage or SMS |
+| `messages_validate_phone` | Validate and normalize a phone number |
 
-**Parameters:**
-- `limit` (optional): Maximum number of messages to return (default: 20)
+### Reading Messages
 
-### `messages_get_conversations`
+| Tool | Description |
+|------|-------------|
+| `messages_get_recent` | Get recent messages with optional date filtering |
+| `messages_get_conversations` | List all conversations with previews |
+| `messages_get_chat` | Get messages from a specific conversation |
+| `messages_get_group_chats` | List group chats with participants |
+| `messages_get_context` | Get messages before/after a specific message |
 
-Get a list of all conversations/chats.
+### Search
 
-**Parameters:**
-- `limit` (optional): Maximum number of conversations to return (default: 50)
+| Tool | Description |
+|------|-------------|
+| `messages_search` | Text search with date/contact filters |
+| `messages_semantic_search` | AI-powered semantic search (requires OpenAI API key) |
 
-### `messages_get_chat`
+### Contacts
 
-Get messages from a specific conversation.
+| Tool | Description |
+|------|-------------|
+| `messages_get_contacts` | List contacts with message statistics |
+| `messages_lookup_contact` | Look up a contact's name |
 
-**Parameters:**
-- `chat_id` (required): The chat identifier (phone number or email)
-- `limit` (optional): Maximum number of messages to return (default: 50)
+### Attachments & Details
 
-### `messages_search`
+| Tool | Description |
+|------|-------------|
+| `messages_get_attachments` | List attachments, filter by MIME type |
+| `messages_get_reactions` | Get tapback reactions for a message |
+| `messages_get_read_receipt` | Get read/delivered status |
 
-Search for messages containing specific text.
+### Sending
 
-**Parameters:**
-- `query` (required): The text to search for
-- `limit` (optional): Maximum number of results to return (default: 20)
-
-### `messages_send`
-
-Send a new message.
-
-**Parameters:**
-- `recipient` (required): The recipient's phone number or email
-- `message` (required): The message text to send
-
-### `messages_get_contacts`
-
-Get a list of contacts you have messaged.
-
-**Parameters:**
-- `limit` (optional): Maximum number of contacts to return (default: 50)
+| Tool | Description |
+|------|-------------|
+| `messages_send` | Send a message (iMessage with SMS fallback) |
 
 ## Example Usage
 
-Once configured, you can ask Claude to:
+Once configured, ask Claude to:
 
-- "Show me my recent messages"
+- "Show my recent messages"
 - "What conversations do I have?"
-- "Search my messages for 'meeting tomorrow'"
-- "Show me messages from +1234567890"
-- "Send a message to john@example.com saying 'Hello!'"
+- "Search messages for 'dinner' from last week"
+- "Show messages from John"
+- "Find messages about the project meeting" (semantic search)
+- "What attachments have I received?"
+- "Send a message to +1234567890 saying 'On my way!'"
+- "Who liked my last message?"
+- "Was my message to Mom read?"
+
+## Semantic Search
+
+Semantic search finds messages by meaning, not just keywords. For example:
+- Query: "food plans" matches "Want to grab dinner?" and "Let's get lunch tomorrow"
+- Query: "feeling sick" matches "I have a cold" and "Not feeling well today"
+
+**Setup**: Set the `OPENAI_API_KEY` environment variable. Without it, semantic search falls back to keyword search.
+
+**Cost**: Uses `text-embedding-3-small` model (~$0.02 per 1M tokens). A typical search costs less than $0.001.
 
 ## Privacy & Security
 
-This MCP server:
-
-- Only accesses the local Messages database on your Mac
-- Requires explicit Full Disk Access permission
-- Does not send any data externally (except through the Messages app when sending)
-- All operations are performed locally
-
-**Note:** Be cautious when using the send message feature. Always verify the recipient before sending.
+- All data stays local - the MCP server only accesses your Mac's Messages database
+- No data is sent externally except:
+  - Messages you explicitly send via the `messages_send` tool
+  - Queries to OpenAI for semantic search (if API key is configured)
+- Requires explicit macOS permissions for database and contact access
 
 ## Troubleshooting
 
 ### "Cannot access Messages database"
+Grant Full Disk Access to your terminal app and restart it.
 
-Ensure you've granted Full Disk Access to your terminal app and restarted it.
+### "Contacts: NOT accessible"
+Grant Contacts permission in System Settings > Privacy & Security > Contacts.
 
 ### "Failed to send message"
+1. Ensure Messages app is open
+2. Grant Automation permission when prompted
+3. Verify the recipient is a valid phone number or email
 
-- Make sure the Messages app is running
-- Verify the recipient is a valid phone number or email
-- Check that you're signed into iMessage/iCloud
+### Contact names not showing
+1. Grant Contacts permission
+2. Ensure the contact exists in your Contacts app with that phone number/email
 
-### Messages not appearing
-
-- The database is updated when you receive/send messages in the Messages app
-- Try refreshing or checking for new messages in the Messages app first
+### Semantic search not working
+1. Verify `OPENAI_API_KEY` is set correctly
+2. Check your OpenAI API quota
 
 ## License
 
@@ -171,4 +212,20 @@ MIT
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions welcome! Please open an issue or submit a PR.
+
+## Changelog
+
+### v2.0.0
+- Added contact name resolution from Contacts.app
+- Added attachment support with MIME filtering
+- Added phone number validation and normalization
+- Added group chat support with participant names
+- Added date range filtering for all queries
+- Added message context (surrounding messages)
+- Added iMessage availability checking
+- Added tapback/reactions support
+- Added read receipt support
+- Added permission checking tool
+- Added semantic search with OpenAI embeddings
+- Improved search with multiple filters
