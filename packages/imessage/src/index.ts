@@ -185,7 +185,7 @@ async function enrichWithContactNames<T extends { contact?: string; contact_id?:
 // ============================================================================
 
 interface PermissionStatus {
-  messages_db: boolean;
+  imessage_db: boolean;
   contacts: boolean;
   automation: boolean;
   full_disk_access: boolean;
@@ -194,7 +194,7 @@ interface PermissionStatus {
 
 async function checkPermissions(): Promise<PermissionStatus> {
   const status: PermissionStatus = {
-    messages_db: false,
+    imessage_db: false,
     contacts: false,
     automation: false,
     full_disk_access: false,
@@ -204,7 +204,7 @@ async function checkPermissions(): Promise<PermissionStatus> {
   // Check Messages database access
   try {
     await execAsync(`sqlite3 "${MESSAGES_DB_PATH}" "SELECT 1 LIMIT 1"`);
-    status.messages_db = true;
+    status.imessage_db = true;
     status.full_disk_access = true;
     status.details.push("Messages database: accessible");
   } catch {
@@ -1080,8 +1080,8 @@ async function getContacts(limit: number = 50): Promise<any[]> {
 
 const tools: Tool[] = [
   {
-    name: "messages_check_permissions",
-    description: "Check what permissions are available for the iChat MCP server (Messages database, Contacts, Automation).",
+    name: "imessage_check_permissions",
+    description: "Check what permissions are available for the iMessage MCP server (Messages database, Contacts, Automation).",
     inputSchema: {
       type: "object",
       properties: {},
@@ -1089,7 +1089,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: "messages_get_recent",
+    name: "imessage_get_recent",
     description: "Get recent messages from Apple Messages with optional date filtering and attachment info.",
     inputSchema: {
       type: "object",
@@ -1103,7 +1103,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: "messages_get_conversations",
+    name: "imessage_get_conversations",
     description: "Get all conversations with contact names, message counts, and last message preview.",
     inputSchema: {
       type: "object",
@@ -1114,7 +1114,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: "messages_get_chat",
+    name: "imessage_get_chat",
     description: "Get messages from a specific conversation with date filtering and attachment support.",
     inputSchema: {
       type: "object",
@@ -1129,7 +1129,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: "messages_search",
+    name: "imessage_search",
     description: "Search messages with text query, date range, and contact filters.",
     inputSchema: {
       type: "object",
@@ -1145,7 +1145,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: "messages_semantic_search",
+    name: "imessage_semantic_search",
     description: "Search messages by meaning/concept using AI embeddings. Falls back to keyword search if no API key. Set OPENAI_API_KEY env var for semantic search.",
     inputSchema: {
       type: "object",
@@ -1157,7 +1157,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: "messages_send",
+    name: "imessage_send",
     description: "Send a message via iMessage (with SMS fallback). Validates phone numbers automatically.",
     inputSchema: {
       type: "object",
@@ -1169,7 +1169,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: "messages_check_imessage",
+    name: "imessage_check_imessage",
     description: "Check if a recipient uses iMessage or SMS based on chat history.",
     inputSchema: {
       type: "object",
@@ -1180,7 +1180,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: "messages_get_contacts",
+    name: "imessage_get_contacts",
     description: "Get contacts you've messaged with names, message counts, and activity stats.",
     inputSchema: {
       type: "object",
@@ -1191,7 +1191,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: "messages_get_group_chats",
+    name: "imessage_get_group_chats",
     description: "Get all group conversations with participants and their names.",
     inputSchema: {
       type: "object",
@@ -1202,7 +1202,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: "messages_get_context",
+    name: "imessage_get_context",
     description: "Get messages surrounding a specific message for context.",
     inputSchema: {
       type: "object",
@@ -1215,7 +1215,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: "messages_get_attachments",
+    name: "imessage_get_attachments",
     description: "Get attachments from messages, optionally filtered by type.",
     inputSchema: {
       type: "object",
@@ -1228,7 +1228,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: "messages_get_reactions",
+    name: "imessage_get_reactions",
     description: "Get tapback reactions (love, like, laugh, etc.) for a specific message.",
     inputSchema: {
       type: "object",
@@ -1239,7 +1239,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: "messages_get_read_receipt",
+    name: "imessage_get_read_receipt",
     description: "Get read/delivered status for a specific message.",
     inputSchema: {
       type: "object",
@@ -1250,7 +1250,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: "messages_validate_phone",
+    name: "imessage_validate_phone",
     description: "Validate and normalize a phone number.",
     inputSchema: {
       type: "object",
@@ -1261,7 +1261,7 @@ const tools: Tool[] = [
     },
   },
   {
-    name: "messages_lookup_contact",
+    name: "imessage_lookup_contact",
     description: "Look up a contact's name from their phone number or email.",
     inputSchema: {
       type: "object",
@@ -1279,12 +1279,12 @@ const tools: Tool[] = [
 
 async function handleToolCall(name: string, args: Record<string, any>): Promise<string> {
   switch (name) {
-    case "messages_check_permissions": {
+    case "imessage_check_permissions": {
       const status = await checkPermissions();
       return JSON.stringify(status, null, 2);
     }
 
-    case "messages_get_recent": {
+    case "imessage_get_recent": {
       const messages = await getRecentMessages(args.limit || 20, {
         startDate: args.start_date,
         endDate: args.end_date,
@@ -1293,12 +1293,12 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
       return JSON.stringify(messages, null, 2);
     }
 
-    case "messages_get_conversations": {
+    case "imessage_get_conversations": {
       const conversations = await getConversations(args.limit || 50);
       return JSON.stringify(conversations, null, 2);
     }
 
-    case "messages_get_chat": {
+    case "imessage_get_chat": {
       if (!args.chat_id) throw new Error("chat_id is required");
       const messages = await getChatMessages(args.chat_id, {
         limit: args.limit,
@@ -1309,7 +1309,7 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
       return JSON.stringify(messages, null, 2);
     }
 
-    case "messages_search": {
+    case "imessage_search": {
       if (!args.query) throw new Error("query is required");
       const messages = await searchMessagesFTS(args.query, {
         limit: args.limit,
@@ -1321,7 +1321,7 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
       return JSON.stringify(messages, null, 2);
     }
 
-    case "messages_semantic_search": {
+    case "imessage_semantic_search": {
       if (!args.query) throw new Error("query is required");
       const result = await semanticSearch(args.query, args.limit || 20);
       return JSON.stringify({
@@ -1331,35 +1331,35 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
       }, null, 2);
     }
 
-    case "messages_send": {
+    case "imessage_send": {
       if (!args.recipient || !args.message) throw new Error("recipient and message are required");
       const result = await sendMessage(args.recipient, args.message);
       return JSON.stringify(result, null, 2);
     }
 
-    case "messages_check_imessage": {
+    case "imessage_check_imessage": {
       if (!args.recipient) throw new Error("recipient is required");
       const result = await checkiMessageAvailability(args.recipient);
       return JSON.stringify(result, null, 2);
     }
 
-    case "messages_get_contacts": {
+    case "imessage_get_contacts": {
       const contacts = await getContacts(args.limit || 50);
       return JSON.stringify(contacts, null, 2);
     }
 
-    case "messages_get_group_chats": {
+    case "imessage_get_group_chats": {
       const groups = await getGroupChats(args.limit || 50);
       return JSON.stringify(groups, null, 2);
     }
 
-    case "messages_get_context": {
+    case "imessage_get_context": {
       if (!args.message_id) throw new Error("message_id is required");
       const context = await getMessageContext(args.message_id, args.before || 5, args.after || 5);
       return JSON.stringify(context, null, 2);
     }
 
-    case "messages_get_attachments": {
+    case "imessage_get_attachments": {
       if (args.message_id) {
         const attachments = await getMessageAttachments(args.message_id);
         return JSON.stringify(attachments, null, 2);
@@ -1368,25 +1368,25 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
       return JSON.stringify(attachments, null, 2);
     }
 
-    case "messages_get_reactions": {
+    case "imessage_get_reactions": {
       if (!args.message_id) throw new Error("message_id is required");
       const reactions = await getMessageReactions(args.message_id);
       return JSON.stringify(reactions, null, 2);
     }
 
-    case "messages_get_read_receipt": {
+    case "imessage_get_read_receipt": {
       if (!args.message_id) throw new Error("message_id is required");
       const receipt = await getReadReceipt(args.message_id);
       return JSON.stringify(receipt, null, 2);
     }
 
-    case "messages_validate_phone": {
+    case "imessage_validate_phone": {
       if (!args.phone) throw new Error("phone is required");
       const result = validatePhoneNumber(args.phone);
       return JSON.stringify(result, null, 2);
     }
 
-    case "messages_lookup_contact": {
+    case "imessage_lookup_contact": {
       if (!args.identifier) throw new Error("identifier is required");
       const normalized = isEmail(args.identifier) ? args.identifier : normalizePhoneNumber(args.identifier);
       const name = await getContactName(normalized);
@@ -1409,7 +1409,7 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
 
 async function main() {
   const server = new Server(
-    { name: "ichat-mcp", version: "2.0.0" },
+    { name: "imessage-mcp", version: "2.0.0" },
     { capabilities: { tools: {} } }
   );
 
@@ -1432,7 +1432,7 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  console.error("iChat MCP server v2.0.0 running on stdio");
+  console.error("iMessage MCP server v2.0.0 running on stdio");
 }
 
 main().catch((error) => {

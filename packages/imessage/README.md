@@ -1,6 +1,6 @@
-# iChat MCP Server
+# iMessage MCP Server
 
-A comprehensive Model Context Protocol (MCP) server for Apple Messages (iChat) on macOS. Provides AI assistants like Claude with full access to read, search, and send messages through the native Messages app.
+A comprehensive Model Context Protocol (MCP) server for iMessage on macOS. Provides AI assistants like Claude with full access to read, search, and send messages through the native Messages app.
 
 ## Features
 
@@ -44,14 +44,14 @@ A comprehensive Model Context Protocol (MCP) server for Apple Messages (iChat) o
 ### From npm
 
 ```bash
-npm install -g ichat-mcp
+npm install -g imessage-mcp
 ```
 
 ### From source
 
 ```bash
-git clone https://github.com/thomasvincent/ichat-mcp.git
-cd ichat-mcp
+git clone https://github.com/thomasvincent/imessage-mcp.git
+cd imessage-mcp
 npm install
 npm run build
 ```
@@ -79,9 +79,9 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "ichat": {
+    "imessage": {
       "command": "npx",
-      "args": ["-y", "ichat-mcp"]
+      "args": ["-y", "imessage-mcp"]
     }
   }
 }
@@ -92,9 +92,9 @@ For semantic search, add your OpenAI API key:
 ```json
 {
   "mcpServers": {
-    "ichat": {
+    "imessage": {
       "command": "npx",
-      "args": ["-y", "ichat-mcp"],
+      "args": ["-y", "imessage-mcp"],
       "env": {
         "OPENAI_API_KEY": "sk-..."
       }
@@ -111,47 +111,47 @@ For semantic search, add your OpenAI API key:
 
 | Tool | Description |
 |------|-------------|
-| `messages_check_permissions` | Check access to Messages database, Contacts, and Automation |
-| `messages_check_imessage` | Check if a recipient uses iMessage or SMS |
-| `messages_validate_phone` | Validate and normalize a phone number |
+| `imessage_check_permissions` | Check access to Messages database, Contacts, and Automation |
+| `imessage_check_imessage` | Check if a recipient uses iMessage or SMS |
+| `imessage_validate_phone` | Validate and normalize a phone number |
 
 ### Reading Messages
 
 | Tool | Description |
 |------|-------------|
-| `messages_get_recent` | Get recent messages with optional date filtering |
-| `messages_get_conversations` | List all conversations with previews |
-| `messages_get_chat` | Get messages from a specific conversation |
-| `messages_get_group_chats` | List group chats with participants |
-| `messages_get_context` | Get messages before/after a specific message |
+| `imessage_get_recent` | Get recent messages with optional date filtering |
+| `imessage_get_conversations` | List all conversations with previews |
+| `imessage_get_chat` | Get messages from a specific conversation |
+| `imessage_get_group_chats` | List group chats with participants |
+| `imessage_get_context` | Get messages before/after a specific message |
 
 ### Search
 
 | Tool | Description |
 |------|-------------|
-| `messages_search` | Text search with date/contact filters |
-| `messages_semantic_search` | AI-powered semantic search (requires OpenAI API key) |
+| `imessage_search` | Text search with date/contact filters |
+| `imessage_semantic_search` | AI-powered semantic search (requires OpenAI API key) |
 
 ### Contacts
 
 | Tool | Description |
 |------|-------------|
-| `messages_get_contacts` | List contacts with message statistics |
-| `messages_lookup_contact` | Look up a contact's name |
+| `imessage_get_contacts` | List contacts with message statistics |
+| `imessage_lookup_contact` | Look up a contact's name |
 
 ### Attachments & Details
 
 | Tool | Description |
 |------|-------------|
-| `messages_get_attachments` | List attachments, filter by MIME type |
-| `messages_get_reactions` | Get tapback reactions for a message |
-| `messages_get_read_receipt` | Get read/delivered status |
+| `imessage_get_attachments` | List attachments, filter by MIME type |
+| `imessage_get_reactions` | Get tapback reactions for a message |
+| `imessage_get_read_receipt` | Get read/delivered status |
 
 ### Sending
 
 | Tool | Description |
 |------|-------------|
-| `messages_send` | Send a message (iMessage with SMS fallback) |
+| `imessage_send` | Send a message (iMessage with SMS fallback) |
 
 ## Example Usage
 
@@ -181,7 +181,7 @@ Semantic search finds messages by meaning, not just keywords. For example:
 
 - All data stays local - the MCP server only accesses your Mac's Messages database
 - No data is sent externally except:
-  - Messages you explicitly send via the `messages_send` tool
+  - Messages you explicitly send via the `imessage_send` tool
   - Queries to OpenAI for semantic search (if API key is configured)
 - Requires explicit macOS permissions for database and contact access
 
@@ -217,6 +217,8 @@ Contributions welcome! Please open an issue or submit a PR.
 ## Changelog
 
 ### v2.0.0
+- Renamed from ichat-mcp to imessage-mcp
+- Standardized all tool names to `imessage_` prefix
 - Added contact name resolution from Contacts.app
 - Added attachment support with MIME filtering
 - Added phone number validation and normalization
