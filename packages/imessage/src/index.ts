@@ -22,6 +22,7 @@ const execAsync = promisify(exec);
 
 const MESSAGES_DB_PATH = path.join(os.homedir(), "Library", "Messages", "chat.db");
 const CONTACTS_DB_PATH = path.join(os.homedir(), "Library", "Application Support", "AddressBook", "Sources");
+const SCHEDULED_MESSAGES_PATH = path.join(os.homedir(), ".imessage-mcp-scheduled.json");
 
 // Optional OpenAI API key for semantic search (can be set via environment variable)
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -1075,6 +1076,176 @@ async function getContacts(limit: number = 50): Promise<any[]> {
 }
 
 // ============================================================================
+// Open Messages App
+// ============================================================================
+
+async function openMessages(): Promise<{ success: boolean; error?: string }> {
+  try {
+    await execAsync(`open -a Messages`);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function openConversation(recipient: string): Promise<{ success: boolean; error?: string }> {
+  // Normalize recipient
+  if (!isEmail(recipient)) {
+    const validation = validatePhoneNumber(recipient);
+    if (validation.valid) {
+      recipient = validation.normalized;
+    }
+  }
+
+  const escapedRecipient = recipient.replace(/"/g, '\\"');
+
+  const script = `
+    tell application "Messages"
+      activate
+      try
+        set targetService to 1st service whose service type = iMessage
+        set targetBuddy to buddy "${escapedRecipient}" of targetService
+        set targetChat to make new text chat with properties {participants:{targetBuddy}}
+      end try
+    end tell
+  `;
+
+  try {
+    await execAsync(`osascript -e '${script.replace(/'/g, "'\\''")}'`, { timeout: 10000 });
+    return { success: true };
+  } catch (error: any) {
+    // Even if the script fails, try to just open Messages
+    await execAsync(`open -a Messages`);
+    return { success: true };
+  }
+}
+
+// ============================================================================
+// Scheduled Messages
+// ============================================================================
+
+interface ScheduledMessage {
+  id: string;
+  recipient: string;
+  message: string;
+  scheduledTime: string;
+  created: string;
+  status: "pending" | "sent" | "failed" | "cancelled";
+  error?: string;
+}
+
+async function loadScheduledMessages(): Promise<ScheduledMessage[]> {
+  try {
+    if (fs.existsSync(SCHEDULED_MESSAGES_PATH)) {
+      const data = fs.readFileSync(SCHEDULED_MESSAGES_PATH, "utf8");
+      return JSON.parse(data);
+    }
+  } catch {
+    // File doesn't exist or is invalid
+  }
+  return [];
+}
+
+async function saveScheduledMessages(messages: ScheduledMessage[]): Promise<void> {
+  fs.writeFileSync(SCHEDULED_MESSAGES_PATH, JSON.stringify(messages, null, 2));
+}
+
+async function scheduleMessage(
+  recipient: string,
+  message: string,
+  scheduledTime: string
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  // Validate recipient
+  if (!isEmail(recipient)) {
+    const validation = validatePhoneNumber(recipient);
+    if (!validation.valid) {
+      return { success: false, error: validation.error };
+    }
+    recipient = validation.normalized;
+  }
+
+  // Validate scheduled time
+  const scheduledDate = new Date(scheduledTime);
+  if (isNaN(scheduledDate.getTime())) {
+    return { success: false, error: "Invalid scheduled time format" };
+  }
+
+  if (scheduledDate <= new Date()) {
+    return { success: false, error: "Scheduled time must be in the future" };
+  }
+
+  const scheduled: ScheduledMessage = {
+    id: `sched_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+    recipient,
+    message,
+    scheduledTime: scheduledDate.toISOString(),
+    created: new Date().toISOString(),
+    status: "pending",
+  };
+
+  const messages = await loadScheduledMessages();
+  messages.push(scheduled);
+  await saveScheduledMessages(messages);
+
+  return { success: true, id: scheduled.id };
+}
+
+async function getScheduledMessages(): Promise<ScheduledMessage[]> {
+  return loadScheduledMessages();
+}
+
+async function cancelScheduledMessage(id: string): Promise<{ success: boolean; error?: string }> {
+  const messages = await loadScheduledMessages();
+  const index = messages.findIndex((m) => m.id === id);
+
+  if (index === -1) {
+    return { success: false, error: "Scheduled message not found" };
+  }
+
+  if (messages[index].status !== "pending") {
+    return { success: false, error: `Cannot cancel message with status: ${messages[index].status}` };
+  }
+
+  messages[index].status = "cancelled";
+  await saveScheduledMessages(messages);
+
+  return { success: true };
+}
+
+async function sendScheduledMessages(): Promise<{ sent: number; failed: number; results: any[] }> {
+  const messages = await loadScheduledMessages();
+  const now = new Date();
+  const results: any[] = [];
+  let sent = 0;
+  let failed = 0;
+
+  for (const msg of messages) {
+    if (msg.status !== "pending") continue;
+
+    const scheduledTime = new Date(msg.scheduledTime);
+    if (scheduledTime <= now) {
+      // Time to send
+      const result = await sendMessage(msg.recipient, msg.message);
+
+      if (result.success) {
+        msg.status = "sent";
+        sent++;
+        results.push({ id: msg.id, status: "sent", recipient: msg.recipient });
+      } else {
+        msg.status = "failed";
+        msg.error = result.error;
+        failed++;
+        results.push({ id: msg.id, status: "failed", error: result.error });
+      }
+    }
+  }
+
+  await saveScheduledMessages(messages);
+
+  return { sent, failed, results };
+}
+
+// ============================================================================
 // Tool Definitions
 // ============================================================================
 
@@ -1271,6 +1442,68 @@ const tools: Tool[] = [
       required: ["identifier"],
     },
   },
+  {
+    name: "imessage_open",
+    description: "Open the Messages app.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "imessage_open_conversation",
+    description: "Open a conversation with a specific contact in Messages.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        recipient: { type: "string", description: "Phone number or email address" },
+      },
+      required: ["recipient"],
+    },
+  },
+  {
+    name: "imessage_schedule_send",
+    description: "Schedule a message to be sent at a future time.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        recipient: { type: "string", description: "Phone number or email address" },
+        message: { type: "string", description: "Message content to send" },
+        scheduled_time: { type: "string", description: "When to send (ISO 8601 format, e.g., 2024-12-25T10:00:00)" },
+      },
+      required: ["recipient", "message", "scheduled_time"],
+    },
+  },
+  {
+    name: "imessage_get_scheduled",
+    description: "Get all scheduled messages.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "imessage_cancel_scheduled",
+    description: "Cancel a scheduled message.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "The scheduled message ID to cancel" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "imessage_send_scheduled_now",
+    description: "Send all scheduled messages that are due (scheduled time has passed).",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      required: [],
+    },
+  },
 ];
 
 // ============================================================================
@@ -1398,6 +1631,41 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
       }, null, 2);
     }
 
+    case "imessage_open": {
+      const result = await openMessages();
+      return JSON.stringify(result, null, 2);
+    }
+
+    case "imessage_open_conversation": {
+      if (!args.recipient) throw new Error("recipient is required");
+      const result = await openConversation(args.recipient);
+      return JSON.stringify(result, null, 2);
+    }
+
+    case "imessage_schedule_send": {
+      if (!args.recipient || !args.message || !args.scheduled_time) {
+        throw new Error("recipient, message, and scheduled_time are required");
+      }
+      const result = await scheduleMessage(args.recipient, args.message, args.scheduled_time);
+      return JSON.stringify(result, null, 2);
+    }
+
+    case "imessage_get_scheduled": {
+      const scheduled = await getScheduledMessages();
+      return JSON.stringify(scheduled, null, 2);
+    }
+
+    case "imessage_cancel_scheduled": {
+      if (!args.id) throw new Error("id is required");
+      const result = await cancelScheduledMessage(args.id);
+      return JSON.stringify(result, null, 2);
+    }
+
+    case "imessage_send_scheduled_now": {
+      const result = await sendScheduledMessages();
+      return JSON.stringify(result, null, 2);
+    }
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -1409,7 +1677,7 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
 
 async function main() {
   const server = new Server(
-    { name: "imessage-mcp", version: "2.0.0" },
+    { name: "imessage-mcp", version: "3.0.0" },
     { capabilities: { tools: {} } }
   );
 
@@ -1432,7 +1700,7 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  console.error("iMessage MCP server v2.0.0 running on stdio");
+  console.error("iMessage MCP server v3.0.0 running on stdio");
 }
 
 main().catch((error) => {
