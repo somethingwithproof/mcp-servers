@@ -459,6 +459,218 @@ async function getSelectedFinderItems(): Promise<string[]> {
 }
 
 // ============================================================================
+// Content Search
+// ============================================================================
+
+interface ContentSearchResult {
+  path: string;
+  name: string;
+  lineNumber?: number;
+  matchedLine?: string;
+  extension: string;
+}
+
+async function searchFileContents(
+  query: string,
+  options: {
+    scope?: string;
+    extensions?: string[];
+    regex?: boolean;
+    caseSensitive?: boolean;
+    limit?: number;
+  } = {}
+): Promise<ContentSearchResult[]> {
+  const {
+    scope = os.homedir(),
+    extensions = [],
+    regex = false,
+    caseSensitive = false,
+    limit = 50,
+  } = options;
+
+  const resolved = expandPath(scope);
+
+  // Build grep command
+  let grepFlags = "-rn"; // recursive, line numbers
+  if (!caseSensitive) grepFlags += "i";
+  if (!regex) grepFlags += "F"; // Fixed string (literal)
+
+  // Build include patterns for extensions
+  let includeArg = "";
+  if (extensions.length > 0) {
+    includeArg = extensions.map((ext) => `--include="*.${ext}"`).join(" ");
+  }
+
+  // Escape query for shell
+  const escapedQuery = query.replace(/"/g, '\\"').replace(/\$/g, "\\$");
+
+  const cmd = `grep ${grepFlags} ${includeArg} "${escapedQuery}" "${resolved}" 2>/dev/null | head -${limit * 2}`;
+
+  try {
+    const result = await execAsync(cmd, {
+      maxBuffer: 10 * 1024 * 1024,
+      timeout: 60000,
+    });
+
+    const lines = result.stdout.trim().split("\n").filter(Boolean);
+    const results: ContentSearchResult[] = [];
+    const seenPaths = new Set<string>();
+
+    for (const line of lines) {
+      if (results.length >= limit) break;
+
+      // Parse grep output: path:lineNumber:content
+      const match = line.match(/^(.+?):(\d+):(.*)$/);
+      if (match) {
+        const [, filePath, lineNum, content] = match;
+
+        // Skip if we've already seen this file and just want unique files
+        if (seenPaths.has(filePath)) continue;
+        seenPaths.add(filePath);
+
+        const parsed = path.parse(filePath);
+        results.push({
+          path: filePath,
+          name: parsed.base,
+          lineNumber: parseInt(lineNum, 10),
+          matchedLine: content.trim().substring(0, 200), // Truncate long lines
+          extension: parsed.ext,
+        });
+      }
+    }
+
+    return results;
+  } catch (error: any) {
+    // grep returns exit code 1 if no matches, which is not an error
+    if (error.code === 1) return [];
+    throw new Error(`Content search failed: ${error.message}`);
+  }
+}
+
+// Search within a specific file
+async function searchInFile(
+  filePath: string,
+  query: string,
+  options: { regex?: boolean; caseSensitive?: boolean; limit?: number } = {}
+): Promise<{ lineNumber: number; content: string }[]> {
+  const { regex = false, caseSensitive = false, limit = 100 } = options;
+
+  const resolved = expandPath(filePath);
+
+  let grepFlags = "-n"; // line numbers
+  if (!caseSensitive) grepFlags += "i";
+  if (!regex) grepFlags += "F";
+
+  const escapedQuery = query.replace(/"/g, '\\"').replace(/\$/g, "\\$");
+  const cmd = `grep ${grepFlags} "${escapedQuery}" "${resolved}" 2>/dev/null | head -${limit}`;
+
+  try {
+    const result = await execAsync(cmd, {
+      maxBuffer: 10 * 1024 * 1024,
+      timeout: 30000,
+    });
+
+    const lines = result.stdout.trim().split("\n").filter(Boolean);
+    return lines.map((line) => {
+      const colonIdx = line.indexOf(":");
+      if (colonIdx > 0) {
+        return {
+          lineNumber: parseInt(line.substring(0, colonIdx), 10),
+          content: line.substring(colonIdx + 1).trim(),
+        };
+      }
+      return { lineNumber: 0, content: line };
+    });
+  } catch (error: any) {
+    if (error.code === 1) return [];
+    throw new Error(`Search in file failed: ${error.message}`);
+  }
+}
+
+// ============================================================================
+// Duplicate File Finder
+// ============================================================================
+
+interface DuplicateGroup {
+  size: number;
+  hash: string;
+  files: string[];
+}
+
+async function findDuplicates(
+  scope: string,
+  options: { minSize?: number; extensions?: string[]; limit?: number } = {}
+): Promise<DuplicateGroup[]> {
+  const { minSize = 1024, extensions = [], limit = 20 } = options;
+  const resolved = expandPath(scope);
+
+  // Find files and get their sizes
+  let findCmd = `find "${resolved}" -type f -size +${minSize}c`;
+  if (extensions.length > 0) {
+    const extPatterns = extensions.map((e) => `-name "*.${e}"`).join(" -o ");
+    findCmd += ` \\( ${extPatterns} \\)`;
+  }
+  findCmd += " 2>/dev/null";
+
+  try {
+    const findResult = await execAsync(findCmd, {
+      maxBuffer: 50 * 1024 * 1024,
+      timeout: 120000,
+    });
+
+    const files = findResult.stdout.trim().split("\n").filter(Boolean);
+
+    // Group by size first (quick filter)
+    const sizeGroups: Map<number, string[]> = new Map();
+    for (const file of files.slice(0, 1000)) {
+      // Limit files to check
+      try {
+        const stats = await fs.stat(file);
+        const size = stats.size;
+        if (!sizeGroups.has(size)) {
+          sizeGroups.set(size, []);
+        }
+        sizeGroups.get(size)!.push(file);
+      } catch {
+        // Skip inaccessible files
+      }
+    }
+
+    // For groups with multiple files of same size, compute MD5 hash
+    const duplicates: DuplicateGroup[] = [];
+    for (const [size, paths] of sizeGroups) {
+      if (paths.length < 2) continue;
+      if (duplicates.length >= limit) break;
+
+      const hashGroups: Map<string, string[]> = new Map();
+      for (const p of paths) {
+        try {
+          const hashResult = await execAsync(`md5 -q "${p}"`, { timeout: 10000 });
+          const hash = hashResult.stdout.trim();
+          if (!hashGroups.has(hash)) {
+            hashGroups.set(hash, []);
+          }
+          hashGroups.get(hash)!.push(p);
+        } catch {
+          // Skip
+        }
+      }
+
+      for (const [hash, hashPaths] of hashGroups) {
+        if (hashPaths.length >= 2) {
+          duplicates.push({ size, hash, files: hashPaths });
+          if (duplicates.length >= limit) break;
+        }
+      }
+    }
+
+    return duplicates;
+  } catch (error: any) {
+    throw new Error(`Find duplicates failed: ${error.message}`);
+  }
+}
+
+// ============================================================================
 // Tool Definitions
 // ============================================================================
 
@@ -665,6 +877,59 @@ const tools: Tool[] = [
       required: [],
     },
   },
+  {
+    name: "finder_search_contents",
+    description: "Search for text within file contents (grep-like search).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Text or pattern to search for" },
+        scope: { type: "string", description: "Directory to search in (default: home, supports ~)" },
+        extensions: {
+          type: "array",
+          items: { type: "string" },
+          description: "File extensions to search (e.g., ['txt', 'md', 'js'])",
+        },
+        regex: { type: "boolean", description: "Treat query as regex pattern (default: false)" },
+        case_sensitive: { type: "boolean", description: "Case-sensitive search (default: false)" },
+        limit: { type: "number", description: "Maximum results (default: 50)" },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "finder_search_in_file",
+    description: "Search for text within a specific file.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Path to file to search" },
+        query: { type: "string", description: "Text or pattern to search for" },
+        regex: { type: "boolean", description: "Treat query as regex (default: false)" },
+        case_sensitive: { type: "boolean", description: "Case-sensitive (default: false)" },
+        limit: { type: "number", description: "Maximum matches (default: 100)" },
+      },
+      required: ["path", "query"],
+    },
+  },
+  {
+    name: "finder_find_duplicates",
+    description: "Find duplicate files by content hash.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        scope: { type: "string", description: "Directory to search (supports ~)" },
+        min_size: { type: "number", description: "Minimum file size in bytes (default: 1024)" },
+        extensions: {
+          type: "array",
+          items: { type: "string" },
+          description: "File extensions to check (optional)",
+        },
+        limit: { type: "number", description: "Maximum duplicate groups (default: 20)" },
+      },
+      required: ["scope"],
+    },
+  },
 ];
 
 // ============================================================================
@@ -779,6 +1044,38 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
       return JSON.stringify({ selection }, null, 2);
     }
 
+    case "finder_search_contents": {
+      if (!args.query) throw new Error("query is required");
+      const results = await searchFileContents(args.query, {
+        scope: args.scope,
+        extensions: args.extensions,
+        regex: args.regex,
+        caseSensitive: args.case_sensitive,
+        limit: args.limit,
+      });
+      return JSON.stringify(results, null, 2);
+    }
+
+    case "finder_search_in_file": {
+      if (!args.path || !args.query) throw new Error("path and query are required");
+      const matches = await searchInFile(args.path, args.query, {
+        regex: args.regex,
+        caseSensitive: args.case_sensitive,
+        limit: args.limit,
+      });
+      return JSON.stringify({ path: args.path, matches }, null, 2);
+    }
+
+    case "finder_find_duplicates": {
+      if (!args.scope) throw new Error("scope is required");
+      const duplicates = await findDuplicates(args.scope, {
+        minSize: args.min_size,
+        extensions: args.extensions,
+        limit: args.limit,
+      });
+      return JSON.stringify(duplicates, null, 2);
+    }
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -790,7 +1087,7 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
 
 async function main() {
   const server = new Server(
-    { name: "finder-mcp", version: "1.0.0" },
+    { name: "finder-mcp", version: "2.0.0" },
     { capabilities: { tools: {} } }
   );
 
@@ -813,7 +1110,7 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  console.error("Finder MCP server v1.0.0 running on stdio");
+  console.error("Finder MCP server v2.0.0 running on stdio");
 }
 
 main().catch((error) => {
