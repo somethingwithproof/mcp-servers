@@ -10,7 +10,8 @@ import * as fs from 'fs';
 
 // Mock child_process.exec to avoid actual AppleScript execution
 vi.mock('child_process', async () => {
-  const actual = await vi.importActual<typeof import('child_process')>('child_process');
+  const actual =
+    await vi.importActual<typeof import('child_process')>('child_process');
   return {
     ...actual,
     exec: vi.fn(),
@@ -29,40 +30,50 @@ vi.mock('fs', async () => {
 });
 
 // Helper to promisify mocked exec
-const mockExec = (child_process.exec as unknown as ReturnType<typeof vi.fn>);
+const mockExec = child_process.exec as unknown as ReturnType<typeof vi.fn>;
 
 // Helper to setup exec mock responses
-function setupExecMock(responses: Record<string, { stdout?: string; stderr?: string; error?: Error }>) {
-  mockExec.mockImplementation((
-    cmd: string,
-    options: any,
-    callback?: (error: Error | null, result: { stdout: string; stderr: string }) => void
-  ) => {
-    // Handle both (cmd, callback) and (cmd, options, callback) signatures
-    const actualCallback = typeof options === 'function' ? options : callback;
+function setupExecMock(
+  responses: Record<string, { stdout?: string; stderr?: string; error?: Error }>
+) {
+  mockExec.mockImplementation(
+    (
+      cmd: string,
+      options: any,
+      callback?: (
+        error: Error | null,
+        result: { stdout: string; stderr: string }
+      ) => void
+    ) => {
+      // Handle both (cmd, callback) and (cmd, options, callback) signatures
+      const actualCallback = typeof options === 'function' ? options : callback;
 
-    // Find matching response
-    let response = { stdout: '', stderr: '' };
-    let error: Error | null = null;
+      // Find matching response
+      let response = { stdout: '', stderr: '' };
+      let error: Error | null = null;
 
-    for (const [pattern, result] of Object.entries(responses)) {
-      if (cmd.includes(pattern)) {
-        if (result.error) {
-          error = result.error;
-        } else {
-          response = { stdout: result.stdout || '', stderr: result.stderr || '' };
+      for (const [pattern, result] of Object.entries(responses)) {
+        if (cmd.includes(pattern)) {
+          if (result.error) {
+            error = result.error;
+          } else {
+            response = {
+              stdout: result.stdout || '',
+              stderr: result.stderr || '',
+            };
+          }
+          break;
         }
-        break;
       }
-    }
 
-    // Simulate async behavior
-    if (actualCallback) {
-      process.nextTick(() => actualCallback(error, response));
-    }
+      // Simulate async behavior
+      if (actualCallback) {
+        process.nextTick(() => actualCallback(error, response));
+      }
 
-    return { stdout: response.stdout, stderr: response.stderr };
-  });
+      return { stdout: response.stdout, stderr: response.stderr };
+    }
+  );
 }
 
 // Sample database responses
@@ -221,23 +232,25 @@ describe('iMessage MCP Server', () => {
     it('should have proper tool schemas with required fields', () => {
       // Tools that require specific parameters
       const toolsWithRequiredParams: Record<string, string[]> = {
-        'imessage_get_chat': ['chat_id'],
-        'imessage_search': ['query'],
-        'imessage_semantic_search': ['query'],
-        'imessage_send': ['recipient', 'message'],
-        'imessage_check_imessage': ['recipient'],
-        'imessage_get_context': ['message_id'],
-        'imessage_get_reactions': ['message_id'],
-        'imessage_get_read_receipt': ['message_id'],
-        'imessage_validate_phone': ['phone'],
-        'imessage_lookup_contact': ['identifier'],
-        'imessage_open_conversation': ['recipient'],
-        'imessage_schedule_send': ['recipient', 'message', 'scheduled_time'],
-        'imessage_cancel_scheduled': ['id'],
+        imessage_get_chat: ['chat_id'],
+        imessage_search: ['query'],
+        imessage_semantic_search: ['query'],
+        imessage_send: ['recipient', 'message'],
+        imessage_check_imessage: ['recipient'],
+        imessage_get_context: ['message_id'],
+        imessage_get_reactions: ['message_id'],
+        imessage_get_read_receipt: ['message_id'],
+        imessage_validate_phone: ['phone'],
+        imessage_lookup_contact: ['identifier'],
+        imessage_open_conversation: ['recipient'],
+        imessage_schedule_send: ['recipient', 'message', 'scheduled_time'],
+        imessage_cancel_scheduled: ['id'],
       };
 
       // Verify tool requirements are defined
-      for (const [toolName, requiredParams] of Object.entries(toolsWithRequiredParams)) {
+      for (const [_toolName, requiredParams] of Object.entries(
+        toolsWithRequiredParams
+      )) {
         expect(requiredParams.length).toBeGreaterThan(0);
       }
     });
@@ -337,7 +350,7 @@ describe('iMessage MCP Server', () => {
     describe('imessage_check_permissions', () => {
       it('should return permission status', async () => {
         setupExecMock({
-          'sqlite3': { stdout: '1' },
+          sqlite3: { stdout: '1' },
           'osascript -e \'tell application "Contacts"': { stdout: '10' },
           'osascript -e \'tell application "Messages"': { stdout: '1' },
         });
@@ -362,8 +375,8 @@ describe('iMessage MCP Server', () => {
 
       it('should handle permission denied errors', async () => {
         setupExecMock({
-          'sqlite3': { error: new Error('unable to open database') },
-          'osascript': { error: new Error('Not authorized') },
+          sqlite3: { error: new Error('unable to open database') },
+          osascript: { error: new Error('Not authorized') },
         });
 
         const status = {
@@ -386,8 +399,8 @@ describe('iMessage MCP Server', () => {
     describe('imessage_get_recent', () => {
       it('should return recent messages', async () => {
         setupExecMock({
-          'sqlite3': { stdout: SAMPLE_MESSAGES_DB_RESPONSE },
-          'osascript': { stdout: '' },
+          sqlite3: { stdout: SAMPLE_MESSAGES_DB_RESPONSE },
+          osascript: { stdout: '' },
         });
 
         const messages = JSON.parse(SAMPLE_MESSAGES_DB_RESPONSE);
@@ -413,8 +426,8 @@ describe('iMessage MCP Server', () => {
     describe('imessage_get_conversations', () => {
       it('should return conversations with metadata', async () => {
         setupExecMock({
-          'sqlite3': { stdout: SAMPLE_CONVERSATIONS_DB_RESPONSE },
-          'osascript': { stdout: '' },
+          sqlite3: { stdout: SAMPLE_CONVERSATIONS_DB_RESPONSE },
+          osascript: { stdout: '' },
         });
 
         const conversations = JSON.parse(SAMPLE_CONVERSATIONS_DB_RESPONSE);
@@ -427,8 +440,8 @@ describe('iMessage MCP Server', () => {
     describe('imessage_get_chat', () => {
       it('should return messages for specific chat', async () => {
         setupExecMock({
-          'sqlite3': { stdout: SAMPLE_MESSAGES_DB_RESPONSE },
-          'osascript': { stdout: '' },
+          sqlite3: { stdout: SAMPLE_MESSAGES_DB_RESPONSE },
+          osascript: { stdout: '' },
         });
 
         const chatId = '+1234567890';
@@ -448,22 +461,24 @@ describe('iMessage MCP Server', () => {
           }
         };
 
-        expect(() => handleToolCall('imessage_get_chat', {})).toThrow('chat_id is required');
+        expect(() => handleToolCall('imessage_get_chat', {})).toThrow(
+          'chat_id is required'
+        );
       });
     });
 
     describe('imessage_search', () => {
       it('should search messages with query', async () => {
         setupExecMock({
-          'sqlite3': { stdout: SAMPLE_MESSAGES_DB_RESPONSE },
+          sqlite3: { stdout: SAMPLE_MESSAGES_DB_RESPONSE },
         });
 
         const query = 'hello';
         const messages = JSON.parse(SAMPLE_MESSAGES_DB_RESPONSE);
 
         // Verify search would match
-        const matchingMessages = messages.filter(
-          (m: any) => m.text.toLowerCase().includes(query.toLowerCase())
+        const matchingMessages = messages.filter((m: any) =>
+          m.text.toLowerCase().includes(query.toLowerCase())
         );
         expect(matchingMessages.length).toBeGreaterThan(0);
       });
@@ -475,14 +490,16 @@ describe('iMessage MCP Server', () => {
           }
         };
 
-        expect(() => handleToolCall('imessage_search', {})).toThrow('query is required');
+        expect(() => handleToolCall('imessage_search', {})).toThrow(
+          'query is required'
+        );
       });
     });
 
     describe('imessage_send', () => {
       it('should send message successfully via iMessage', async () => {
         setupExecMock({
-          'osascript': { stdout: '' },
+          osascript: { stdout: '' },
         });
 
         const result = { success: true, service: 'iMessage' };
@@ -493,16 +510,30 @@ describe('iMessage MCP Server', () => {
       it('should fallback to SMS when iMessage fails', async () => {
         // First call fails (iMessage), second succeeds (SMS)
         let callCount = 0;
-        mockExec.mockImplementation((cmd: string, options: any, callback?: Function) => {
-          const actualCallback = typeof options === 'function' ? options : callback;
-          callCount++;
+        mockExec.mockImplementation(
+          (
+            cmd: string,
+            options: unknown,
+            callback?: (...args: unknown[]) => void
+          ) => {
+            const actualCallback =
+              typeof options === 'function' ? options : callback;
+            callCount++;
 
-          if (callCount === 1 && cmd.includes('iMessage')) {
-            process.nextTick(() => actualCallback?.(new Error('iMessage failed'), { stdout: '', stderr: '' }));
-          } else {
-            process.nextTick(() => actualCallback?.(null, { stdout: '', stderr: '' }));
+            if (callCount === 1 && cmd.includes('iMessage')) {
+              process.nextTick(() =>
+                actualCallback?.(new Error('iMessage failed'), {
+                  stdout: '',
+                  stderr: '',
+                })
+              );
+            } else {
+              process.nextTick(() =>
+                actualCallback?.(null, { stdout: '', stderr: '' })
+              );
+            }
           }
-        });
+        );
 
         const result = { success: true, service: 'SMS' };
         expect(result.success).toBe(true);
@@ -513,7 +544,10 @@ describe('iMessage MCP Server', () => {
         const validatePhoneNumber = (phone: string) => {
           const digits = phone.replace(/\D/g, '');
           if (digits.length < 10) {
-            return { valid: false, error: 'Phone number too short (minimum 10 digits)' };
+            return {
+              valid: false,
+              error: 'Phone number too short (minimum 10 digits)',
+            };
           }
           return { valid: true, normalized: `+1${digits}` };
         };
@@ -529,17 +563,23 @@ describe('iMessage MCP Server', () => {
           }
         };
 
-        expect(() => handleToolCall('imessage_send', {})).toThrow('recipient and message are required');
-        expect(() => handleToolCall('imessage_send', { recipient: '+11234567890' })).toThrow('recipient and message are required');
-        expect(() => handleToolCall('imessage_send', { message: 'Hello' })).toThrow('recipient and message are required');
+        expect(() => handleToolCall('imessage_send', {})).toThrow(
+          'recipient and message are required'
+        );
+        expect(() =>
+          handleToolCall('imessage_send', { recipient: '+11234567890' })
+        ).toThrow('recipient and message are required');
+        expect(() =>
+          handleToolCall('imessage_send', { message: 'Hello' })
+        ).toThrow('recipient and message are required');
       });
     });
 
     describe('imessage_get_contacts', () => {
       it('should return contacts with message counts', async () => {
         setupExecMock({
-          'sqlite3': { stdout: SAMPLE_CONTACTS_DB_RESPONSE },
-          'osascript': { stdout: '' },
+          sqlite3: { stdout: SAMPLE_CONTACTS_DB_RESPONSE },
+          osascript: { stdout: '' },
         });
 
         const contacts = JSON.parse(SAMPLE_CONTACTS_DB_RESPONSE);
@@ -552,8 +592,8 @@ describe('iMessage MCP Server', () => {
     describe('imessage_get_group_chats', () => {
       it('should return group chats with participants', async () => {
         setupExecMock({
-          'sqlite3': { stdout: SAMPLE_GROUP_CHATS_DB_RESPONSE },
-          'osascript': { stdout: '' },
+          sqlite3: { stdout: SAMPLE_GROUP_CHATS_DB_RESPONSE },
+          osascript: { stdout: '' },
         });
 
         const groups = JSON.parse(SAMPLE_GROUP_CHATS_DB_RESPONSE);
@@ -566,7 +606,7 @@ describe('iMessage MCP Server', () => {
     describe('imessage_get_attachments', () => {
       it('should return attachments', async () => {
         setupExecMock({
-          'sqlite3': { stdout: SAMPLE_ATTACHMENTS_DB_RESPONSE },
+          sqlite3: { stdout: SAMPLE_ATTACHMENTS_DB_RESPONSE },
         });
 
         const attachments = JSON.parse(SAMPLE_ATTACHMENTS_DB_RESPONSE);
@@ -578,8 +618,8 @@ describe('iMessage MCP Server', () => {
         const mimeFilter = 'image';
         const attachments = JSON.parse(SAMPLE_ATTACHMENTS_DB_RESPONSE);
 
-        const filtered = attachments.filter(
-          (a: any) => a.mime_type.includes(mimeFilter)
+        const filtered = attachments.filter((a: any) =>
+          a.mime_type.includes(mimeFilter)
         );
         expect(filtered.length).toBeGreaterThan(0);
       });
@@ -588,7 +628,7 @@ describe('iMessage MCP Server', () => {
     describe('imessage_get_reactions', () => {
       it('should return tapback reactions', async () => {
         setupExecMock({
-          'sqlite3': { stdout: SAMPLE_REACTIONS_DB_RESPONSE },
+          sqlite3: { stdout: SAMPLE_REACTIONS_DB_RESPONSE },
         });
 
         const TAPBACK_TYPES: Record<number, string> = {
@@ -612,14 +652,16 @@ describe('iMessage MCP Server', () => {
           }
         };
 
-        expect(() => handleToolCall('imessage_get_reactions', {})).toThrow('message_id is required');
+        expect(() => handleToolCall('imessage_get_reactions', {})).toThrow(
+          'message_id is required'
+        );
       });
     });
 
     describe('imessage_get_read_receipt', () => {
       it('should return read receipt status', async () => {
         setupExecMock({
-          'sqlite3': { stdout: SAMPLE_READ_RECEIPT_DB_RESPONSE },
+          sqlite3: { stdout: SAMPLE_READ_RECEIPT_DB_RESPONSE },
         });
 
         const receipt = JSON.parse(SAMPLE_READ_RECEIPT_DB_RESPONSE)[0];
@@ -669,7 +711,7 @@ describe('iMessage MCP Server', () => {
     describe('imessage_open_conversation', () => {
       it('should open conversation with recipient', async () => {
         setupExecMock({
-          'osascript': { stdout: '' },
+          osascript: { stdout: '' },
         });
 
         const result = { success: true };
@@ -694,7 +736,9 @@ describe('iMessage MCP Server', () => {
         };
 
         expect(scheduledMessage.status).toBe('pending');
-        expect(new Date(scheduledMessage.scheduledTime).getTime()).toBeGreaterThan(Date.now());
+        expect(
+          new Date(scheduledMessage.scheduledTime).getTime()
+        ).toBeGreaterThan(Date.now());
       });
 
       it('should validate scheduled time is in the future', async () => {
@@ -706,19 +750,30 @@ describe('iMessage MCP Server', () => {
       });
 
       it('should throw error for invalid scheduled time', async () => {
-        const scheduleMessage = (recipient: string, message: string, scheduledTime: string) => {
+        const scheduleMessage = (
+          recipient: string,
+          message: string,
+          scheduledTime: string
+        ) => {
           const scheduledDate = new Date(scheduledTime);
           if (isNaN(scheduledDate.getTime())) {
             return { success: false, error: 'Invalid scheduled time format' };
           }
           if (scheduledDate <= new Date()) {
-            return { success: false, error: 'Scheduled time must be in the future' };
+            return {
+              success: false,
+              error: 'Scheduled time must be in the future',
+            };
           }
           return { success: true, id: 'sched_123' };
         };
 
-        expect(scheduleMessage('+11234567890', 'Test', 'invalid').error).toBe('Invalid scheduled time format');
-        expect(scheduleMessage('+11234567890', 'Test', '2020-01-01T00:00:00Z').error).toBe('Scheduled time must be in the future');
+        expect(scheduleMessage('+11234567890', 'Test', 'invalid').error).toBe(
+          'Invalid scheduled time format'
+        );
+        expect(
+          scheduleMessage('+11234567890', 'Test', '2020-01-01T00:00:00Z').error
+        ).toBe('Scheduled time must be in the future');
       });
     });
 
@@ -742,7 +797,9 @@ describe('iMessage MCP Server', () => {
         ];
 
         (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-        (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockScheduled));
+        (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+          JSON.stringify(mockScheduled)
+        );
 
         const scheduled = JSON.parse(fs.readFileSync('', 'utf8') as string);
         expect(scheduled).toHaveLength(2);
@@ -780,7 +837,10 @@ describe('iMessage MCP Server', () => {
             return { success: false, error: 'Scheduled message not found' };
           }
           if (messages[index].status !== 'pending') {
-            return { success: false, error: `Cannot cancel message with status: ${messages[index].status}` };
+            return {
+              success: false,
+              error: `Cannot cancel message with status: ${messages[index].status}`,
+            };
           }
           messages[index].status = 'cancelled';
           return { success: true };
@@ -814,7 +874,10 @@ describe('iMessage MCP Server', () => {
             return { success: false, error: 'Scheduled message not found' };
           }
           if (messages[index].status !== 'pending') {
-            return { success: false, error: `Cannot cancel message with status: ${messages[index].status}` };
+            return {
+              success: false,
+              error: `Cannot cancel message with status: ${messages[index].status}`,
+            };
           }
           return { success: true };
         };
@@ -846,12 +909,12 @@ describe('iMessage MCP Server', () => {
         ];
 
         setupExecMock({
-          'osascript': { stdout: '' },
+          osascript: { stdout: '' },
         });
 
         const sendScheduledMessages = (messages: any[]) => {
           let sent = 0;
-          let failed = 0;
+          const failed = 0;
 
           for (const msg of messages) {
             if (msg.status !== 'pending') continue;
@@ -876,48 +939,58 @@ describe('iMessage MCP Server', () => {
 
   describe('Error Handling', () => {
     it('should handle unknown tool gracefully', async () => {
-      const handleToolCall = (name: string, args: Record<string, any>) => {
+      const handleToolCall = (name: string, _args: Record<string, unknown>) => {
         const knownTools = ['imessage_get_recent', 'imessage_send'];
         if (!knownTools.includes(name)) {
           throw new Error(`Unknown tool: ${name}`);
         }
       };
 
-      expect(() => handleToolCall('unknown_tool', {})).toThrow('Unknown tool: unknown_tool');
+      expect(() => handleToolCall('unknown_tool', {})).toThrow(
+        'Unknown tool: unknown_tool'
+      );
     });
 
     it('should handle database access errors', async () => {
       setupExecMock({
-        'sqlite3': { error: new Error('unable to open database') },
+        sqlite3: { error: new Error('unable to open database') },
       });
 
       const queryMessagesDb = async (query: string) => {
         return new Promise((resolve, reject) => {
-          mockExec(`sqlite3 test "${query}"`, {}, (error: Error | null, result: any) => {
-            if (error) {
-              if (error.message?.includes('unable to open database')) {
-                reject(new Error(
-                  'Cannot access Messages database. Please grant Full Disk Access permission to the terminal app in System Preferences > Security & Privacy > Privacy > Full Disk Access'
-                ));
+          mockExec(
+            `sqlite3 test "${query}"`,
+            {},
+            (error: Error | null, result: any) => {
+              if (error) {
+                if (error.message?.includes('unable to open database')) {
+                  reject(
+                    new Error(
+                      'Cannot access Messages database. Please grant Full Disk Access permission to the terminal app in System Preferences > Security & Privacy > Privacy > Full Disk Access'
+                    )
+                  );
+                } else {
+                  reject(error);
+                }
               } else {
-                reject(error);
+                resolve(result.stdout);
               }
-            } else {
-              resolve(result.stdout);
             }
-          });
+          );
         });
       };
 
-      await expect(queryMessagesDb('SELECT 1')).rejects.toThrow('Cannot access Messages database');
+      await expect(queryMessagesDb('SELECT 1')).rejects.toThrow(
+        'Cannot access Messages database'
+      );
     });
 
     it('should handle AppleScript execution errors', async () => {
       setupExecMock({
-        'osascript': { error: new Error('execution error') },
+        osascript: { error: new Error('execution error') },
       });
 
-      const sendMessage = async (recipient: string, message: string) => {
+      const sendMessage = async (_recipient: string, _message: string) => {
         return new Promise((resolve) => {
           mockExec(`osascript -e 'test'`, {}, (error: Error | null) => {
             if (error) {
@@ -941,7 +1014,7 @@ describe('iMessage MCP Server', () => {
 
     it('should handle malformed JSON from database', async () => {
       setupExecMock({
-        'sqlite3': { stdout: 'not valid json' },
+        sqlite3: { stdout: 'not valid json' },
       });
 
       const parseDbResult = <T>(result: string): T[] => {
@@ -981,7 +1054,7 @@ describe('iMessage MCP Server', () => {
     it('should fallback to keyword search without API key', async () => {
       const OPENAI_API_KEY = undefined;
 
-      const semanticSearch = async (query: string) => {
+      const semanticSearch = async (_query: string) => {
         if (!OPENAI_API_KEY) {
           return { results: [], method: 'keyword' as const };
         }
@@ -1056,7 +1129,7 @@ describe('iMessage MCP Server', () => {
     describe('imessage_check_imessage', () => {
       it('should detect iMessage user', async () => {
         setupExecMock({
-          'sqlite3': { stdout: JSON.stringify([{ service_name: 'iMessage' }]) },
+          sqlite3: { stdout: JSON.stringify([{ service_name: 'iMessage' }]) },
         });
 
         const result = {
@@ -1070,7 +1143,7 @@ describe('iMessage MCP Server', () => {
 
       it('should detect SMS user', async () => {
         setupExecMock({
-          'sqlite3': { stdout: JSON.stringify([{ service_name: 'SMS' }]) },
+          sqlite3: { stdout: JSON.stringify([{ service_name: 'SMS' }]) },
         });
 
         const result = {
@@ -1084,7 +1157,7 @@ describe('iMessage MCP Server', () => {
 
       it('should handle unknown service', async () => {
         setupExecMock({
-          'sqlite3': { stdout: '[]' },
+          sqlite3: { stdout: '[]' },
         });
 
         const result = {
@@ -1102,7 +1175,7 @@ describe('iMessage MCP Server', () => {
     describe('imessage_lookup_contact', () => {
       it('should find contact by phone number', async () => {
         setupExecMock({
-          'osascript': { stdout: 'John Doe' },
+          osascript: { stdout: 'John Doe' },
         });
 
         const result = {
@@ -1118,7 +1191,7 @@ describe('iMessage MCP Server', () => {
 
       it('should handle contact not found', async () => {
         setupExecMock({
-          'osascript': { stdout: '' },
+          osascript: { stdout: '' },
         });
 
         const result = {

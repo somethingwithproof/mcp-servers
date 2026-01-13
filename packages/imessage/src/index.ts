@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
   Tool,
-} from "@modelcontextprotocol/sdk/types.js";
-import { exec } from "child_process";
-import { promisify } from "util";
-import * as path from "path";
-import * as os from "os";
-import * as fs from "fs";
-import * as https from "https";
+} from '@modelcontextprotocol/sdk/types.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import * as path from 'path';
+import * as os from 'os';
+import * as fs from 'fs';
+import * as https from 'https';
 
 const execAsync = promisify(exec);
 
@@ -20,9 +20,23 @@ const execAsync = promisify(exec);
 // Configuration
 // ============================================================================
 
-const MESSAGES_DB_PATH = path.join(os.homedir(), "Library", "Messages", "chat.db");
-const CONTACTS_DB_PATH = path.join(os.homedir(), "Library", "Application Support", "AddressBook", "Sources");
-const SCHEDULED_MESSAGES_PATH = path.join(os.homedir(), ".imessage-mcp-scheduled.json");
+const MESSAGES_DB_PATH = path.join(
+  os.homedir(),
+  'Library',
+  'Messages',
+  'chat.db'
+);
+const _CONTACTS_DB_PATH = path.join(
+  os.homedir(),
+  'Library',
+  'Application Support',
+  'AddressBook',
+  'Sources'
+);
+const SCHEDULED_MESSAGES_PATH = path.join(
+  os.homedir(),
+  '.imessage-mcp-scheduled.json'
+);
 
 // Optional OpenAI API key for semantic search (can be set via environment variable)
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -36,29 +50,41 @@ const contactCache = new Map<string, string>();
 
 function normalizePhoneNumber(phone: string): string {
   // Remove all non-digit characters except leading +
-  const hasPlus = phone.startsWith("+");
-  const digits = phone.replace(/\D/g, "");
+  const hasPlus = phone.startsWith('+');
+  const digits = phone.replace(/\D/g, '');
 
   // Handle US numbers
   if (digits.length === 10) {
     return `+1${digits}`;
   }
-  if (digits.length === 11 && digits.startsWith("1")) {
+  if (digits.length === 11 && digits.startsWith('1')) {
     return `+${digits}`;
   }
 
   return hasPlus ? `+${digits}` : digits;
 }
 
-function validatePhoneNumber(phone: string): { valid: boolean; normalized: string; error?: string } {
+function validatePhoneNumber(phone: string): {
+  valid: boolean;
+  normalized: string;
+  error?: string;
+} {
   const normalized = normalizePhoneNumber(phone);
-  const digits = normalized.replace(/\D/g, "");
+  const digits = normalized.replace(/\D/g, '');
 
   if (digits.length < 10) {
-    return { valid: false, normalized, error: "Phone number too short (minimum 10 digits)" };
+    return {
+      valid: false,
+      normalized,
+      error: 'Phone number too short (minimum 10 digits)',
+    };
   }
   if (digits.length > 15) {
-    return { valid: false, normalized, error: "Phone number too long (maximum 15 digits)" };
+    return {
+      valid: false,
+      normalized,
+      error: 'Phone number too long (maximum 15 digits)',
+    };
   }
 
   return { valid: true, normalized };
@@ -80,9 +106,9 @@ async function queryMessagesDb(query: string): Promise<string> {
     );
     return result.stdout;
   } catch (error: any) {
-    if (error.message?.includes("unable to open database")) {
+    if (error.message?.includes('unable to open database')) {
       throw new Error(
-        "Cannot access Messages database. Please grant Full Disk Access permission to the terminal app in System Preferences > Security & Privacy > Privacy > Full Disk Access"
+        'Cannot access Messages database. Please grant Full Disk Access permission to the terminal app in System Preferences > Security & Privacy > Privacy > Full Disk Access'
       );
     }
     throw error;
@@ -99,10 +125,10 @@ function parseDbResult<T>(result: string): T[] {
 }
 
 // Apple timestamps are nanoseconds since 2001-01-01
-const APPLE_EPOCH = new Date("2001-01-01T00:00:00Z").getTime();
+const APPLE_EPOCH = new Date('2001-01-01T00:00:00Z').getTime();
 
 function formatAppleTimestamp(timestamp: number): string {
-  if (!timestamp) return "Unknown";
+  if (!timestamp) return 'Unknown';
   const date = new Date(APPLE_EPOCH + timestamp / 1000000);
   return date.toISOString();
 }
@@ -150,10 +176,12 @@ async function getContactName(identifier: string): Promise<string | null> {
       end tell
     `;
 
-    const result = await execAsync(`osascript -e '${script}'`, { timeout: 5000 });
+    const result = await execAsync(`osascript -e '${script}'`, {
+      timeout: 5000,
+    });
     const name = result.stdout.trim();
 
-    if (name && name !== " ") {
+    if (name && name !== ' ') {
       contactCache.set(identifier, name);
       return name;
     }
@@ -161,13 +189,13 @@ async function getContactName(identifier: string): Promise<string | null> {
     // Contacts access may be denied, continue without name
   }
 
-  contactCache.set(identifier, "");
+  contactCache.set(identifier, '');
   return null;
 }
 
-async function enrichWithContactNames<T extends { contact?: string; contact_id?: string }>(
-  items: T[]
-): Promise<(T & { contact_name?: string })[]> {
+async function _enrichWithContactNames<
+  T extends { contact?: string; contact_id?: string },
+>(items: T[]): Promise<(T & { contact_name?: string })[]> {
   const results = await Promise.all(
     items.map(async (item) => {
       const identifier = item.contact || item.contact_id;
@@ -207,27 +235,37 @@ async function checkPermissions(): Promise<PermissionStatus> {
     await execAsync(`sqlite3 "${MESSAGES_DB_PATH}" "SELECT 1 LIMIT 1"`);
     status.imessage_db = true;
     status.full_disk_access = true;
-    status.details.push("Messages database: accessible");
+    status.details.push('Messages database: accessible');
   } catch {
-    status.details.push("Messages database: NOT accessible (grant Full Disk Access)");
+    status.details.push(
+      'Messages database: NOT accessible (grant Full Disk Access)'
+    );
   }
 
   // Check Contacts access
   try {
-    await execAsync(`osascript -e 'tell application "Contacts" to count people'`, { timeout: 5000 });
+    await execAsync(
+      `osascript -e 'tell application "Contacts" to count people'`,
+      { timeout: 5000 }
+    );
     status.contacts = true;
-    status.details.push("Contacts: accessible");
+    status.details.push('Contacts: accessible');
   } catch {
-    status.details.push("Contacts: NOT accessible (grant Contacts permission)");
+    status.details.push('Contacts: NOT accessible (grant Contacts permission)');
   }
 
   // Check Automation access (Messages app)
   try {
-    await execAsync(`osascript -e 'tell application "Messages" to count services'`, { timeout: 5000 });
+    await execAsync(
+      `osascript -e 'tell application "Messages" to count services'`,
+      { timeout: 5000 }
+    );
     status.automation = true;
-    status.details.push("Messages automation: accessible");
+    status.details.push('Messages automation: accessible');
   } catch {
-    status.details.push("Messages automation: NOT accessible (grant Automation permission)");
+    status.details.push(
+      'Messages automation: NOT accessible (grant Automation permission)'
+    );
   }
 
   return status;
@@ -239,7 +277,7 @@ async function checkPermissions(): Promise<PermissionStatus> {
 
 async function checkiMessageAvailability(recipient: string): Promise<{
   available: boolean;
-  service: "iMessage" | "SMS" | "unknown";
+  service: 'iMessage' | 'SMS' | 'unknown';
   details: string;
 }> {
   const normalized = normalizePhoneNumber(recipient);
@@ -261,16 +299,32 @@ async function checkiMessageAvailability(recipient: string): Promise<{
 
     if (rows.length > 0) {
       const service = rows[0].service_name;
-      if (service === "iMessage") {
-        return { available: true, service: "iMessage", details: "Recipient uses iMessage" };
-      } else if (service === "SMS") {
-        return { available: true, service: "SMS", details: "Recipient uses SMS" };
+      if (service === 'iMessage') {
+        return {
+          available: true,
+          service: 'iMessage',
+          details: 'Recipient uses iMessage',
+        };
+      } else if (service === 'SMS') {
+        return {
+          available: true,
+          service: 'SMS',
+          details: 'Recipient uses SMS',
+        };
       }
     }
 
-    return { available: false, service: "unknown", details: "No previous conversation found - service unknown" };
+    return {
+      available: false,
+      service: 'unknown',
+      details: 'No previous conversation found - service unknown',
+    };
   } catch (error: any) {
-    return { available: false, service: "unknown", details: `Error checking: ${error.message}` };
+    return {
+      available: false,
+      service: 'unknown',
+      details: `Error checking: ${error.message}`,
+    };
   }
 }
 
@@ -308,16 +362,19 @@ async function getMessageAttachments(messageId: number): Promise<Attachment[]> {
 
   return rows.map((row) => ({
     id: row.id,
-    filename: row.filename ? path.basename(row.filename) : "unknown",
-    mime_type: row.mime_type || "application/octet-stream",
+    filename: row.filename ? path.basename(row.filename) : 'unknown',
+    mime_type: row.mime_type || 'application/octet-stream',
     file_size: row.file_size || 0,
-    filepath: row.filepath || "",
+    filepath: row.filepath || '',
     is_outgoing: row.is_outgoing === 1,
     created_date: formatAppleTimestamp(row.created_date),
   }));
 }
 
-async function getAttachments(limit: number = 50, mimeFilter?: string): Promise<Attachment[]> {
+async function getAttachments(
+  limit: number = 50,
+  mimeFilter?: string
+): Promise<Attachment[]> {
   let query = `
     SELECT
       a.ROWID as id,
@@ -342,10 +399,10 @@ async function getAttachments(limit: number = 50, mimeFilter?: string): Promise<
 
   return rows.map((row) => ({
     id: row.id,
-    filename: row.filename ? path.basename(row.filename) : "unknown",
-    mime_type: row.mime_type || "application/octet-stream",
+    filename: row.filename ? path.basename(row.filename) : 'unknown',
+    mime_type: row.mime_type || 'application/octet-stream',
     file_size: row.file_size || 0,
-    filepath: row.filepath || "",
+    filepath: row.filepath || '',
     is_outgoing: row.is_outgoing === 1,
     created_date: formatAppleTimestamp(row.created_date),
   }));
@@ -356,18 +413,18 @@ async function getAttachments(limit: number = 50, mimeFilter?: string): Promise<
 // ============================================================================
 
 const TAPBACK_TYPES: Record<number, string> = {
-  2000: "love",
-  2001: "like",
-  2002: "dislike",
-  2003: "laugh",
-  2004: "emphasis",
-  2005: "question",
-  3000: "remove_love",
-  3001: "remove_like",
-  3002: "remove_dislike",
-  3003: "remove_laugh",
-  3004: "remove_emphasis",
-  3005: "remove_question",
+  2000: 'love',
+  2001: 'like',
+  2002: 'dislike',
+  2003: 'laugh',
+  2004: 'emphasis',
+  2005: 'question',
+  3000: 'remove_love',
+  3001: 'remove_like',
+  3002: 'remove_dislike',
+  3003: 'remove_laugh',
+  3004: 'remove_emphasis',
+  3005: 'remove_question',
 };
 
 interface Reaction {
@@ -396,7 +453,7 @@ async function getMessageReactions(messageId: number): Promise<Reaction[]> {
   return rows.map((row) => ({
     type: TAPBACK_TYPES[row.type] || `unknown_${row.type}`,
     from_me: row.is_from_me === 1,
-    contact: row.contact_id || "Unknown",
+    contact: row.contact_id || 'Unknown',
     timestamp: formatAppleTimestamp(row.timestamp),
   }));
 }
@@ -427,7 +484,12 @@ async function getReadReceipt(messageId: number): Promise<ReadReceiptInfo> {
   const rows = parseDbResult<any>(result);
 
   if (rows.length === 0) {
-    return { is_read: false, is_delivered: false, date_read: null, date_delivered: null };
+    return {
+      is_read: false,
+      is_delivered: false,
+      date_read: null,
+      date_delivered: null,
+    };
   }
 
   const row = rows[0];
@@ -435,7 +497,9 @@ async function getReadReceipt(messageId: number): Promise<ReadReceiptInfo> {
     is_read: row.is_read === 1,
     is_delivered: row.is_delivered === 1,
     date_read: row.date_read ? formatAppleTimestamp(row.date_read) : null,
-    date_delivered: row.date_delivered ? formatAppleTimestamp(row.date_delivered) : null,
+    date_delivered: row.date_delivered
+      ? formatAppleTimestamp(row.date_delivered)
+      : null,
   };
 }
 
@@ -479,7 +543,7 @@ async function getGroupChats(limit: number = 50): Promise<GroupChat[]> {
 
   const groupChats = await Promise.all(
     rows.map(async (row) => {
-      const participants = row.participants ? row.participants.split("|") : [];
+      const participants = row.participants ? row.participants.split('|') : [];
       const participantNames = await Promise.all(
         participants.map(async (p: string) => (await getContactName(p)) || p)
       );
@@ -487,7 +551,7 @@ async function getGroupChats(limit: number = 50): Promise<GroupChat[]> {
       return {
         id: row.id,
         identifier: row.identifier,
-        display_name: row.display_name || "Group Chat",
+        display_name: row.display_name || 'Group Chat',
         participants,
         participant_names: participantNames,
         message_count: row.message_count,
@@ -521,7 +585,7 @@ async function getMessageContext(
   const targetRows = parseDbResult<any>(targetResult);
 
   if (targetRows.length === 0) {
-    throw new Error("Message not found");
+    throw new Error('Message not found');
   }
 
   const { date: targetDate, chat_id: chatId } = targetRows[0];
@@ -586,10 +650,12 @@ async function getMessageContext(
     text: msg.text,
     timestamp: formatAppleTimestamp(msg.timestamp),
     is_from_me: msg.is_from_me === 1,
-    contact: msg.contact_id || "Unknown",
+    contact: msg.contact_id || 'Unknown',
   });
 
-  const beforeMessages = parseDbResult<any>(beforeResult).map(formatMessage).reverse();
+  const beforeMessages = parseDbResult<any>(beforeResult)
+    .map(formatMessage)
+    .reverse();
   const afterMessages = parseDbResult<any>(afterResult).map(formatMessage);
   const message = parseDbResult<any>(messageResult).map(formatMessage)[0];
 
@@ -613,7 +679,7 @@ async function searchMessagesFTS(
   const { limit = 50, startDate, endDate, contact, chatId } = options;
   const escapedQuery = query.replace(/'/g, "''");
 
-  let whereConditions = [`m.text LIKE '%${escapedQuery}%'`];
+  const whereConditions = [`m.text LIKE '%${escapedQuery}%'`];
 
   if (startDate) {
     const date = parseDate(startDate);
@@ -631,7 +697,9 @@ async function searchMessagesFTS(
 
   if (contact) {
     const normalizedContact = normalizePhoneNumber(contact);
-    whereConditions.push(`h.id LIKE '%${normalizedContact.replace(/'/g, "''")}%'`);
+    whereConditions.push(
+      `h.id LIKE '%${normalizedContact.replace(/'/g, "''")}%'`
+    );
   }
 
   if (chatId) {
@@ -653,7 +721,7 @@ async function searchMessagesFTS(
     LEFT JOIN handle h ON m.handle_id = h.ROWID
     LEFT JOIN chat_message_join cmj ON m.ROWID = cmj.message_id
     LEFT JOIN chat c ON cmj.chat_id = c.ROWID
-    WHERE ${whereConditions.join(" AND ")}
+    WHERE ${whereConditions.join(' AND ')}
     ORDER BY m.date DESC
     LIMIT ${limit}
   `;
@@ -668,8 +736,8 @@ async function searchMessagesFTS(
     is_from_me: msg.is_from_me === 1,
     is_read: msg.is_read === 1,
     is_delivered: msg.is_delivered === 1,
-    contact: msg.contact_id || "Unknown",
-    chat_name: msg.chat_name || msg.contact_id || "Unknown",
+    contact: msg.contact_id || 'Unknown',
+    chat_name: msg.chat_name || msg.contact_id || 'Unknown',
     chat_identifier: msg.chat_identifier,
   }));
 }
@@ -685,26 +753,26 @@ async function getEmbedding(text: string): Promise<number[] | null> {
 
   return new Promise((resolve) => {
     const data = JSON.stringify({
-      model: "text-embedding-3-small",
+      model: 'text-embedding-3-small',
       input: text,
     });
 
     const options = {
-      hostname: "api.openai.com",
+      hostname: 'api.openai.com',
       port: 443,
-      path: "/v1/embeddings",
-      method: "POST",
+      path: '/v1/embeddings',
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Length": Buffer.byteLength(data),
+        'Content-Length': Buffer.byteLength(data),
       },
     };
 
     const req = https.request(options, (res) => {
-      let body = "";
-      res.on("data", (chunk) => (body += chunk));
-      res.on("end", () => {
+      let body = '';
+      res.on('data', (chunk) => (body += chunk));
+      res.on('end', () => {
         try {
           const response = JSON.parse(body);
           if (response.data && response.data[0]) {
@@ -718,7 +786,7 @@ async function getEmbedding(text: string): Promise<number[] | null> {
       });
     });
 
-    req.on("error", () => resolve(null));
+    req.on('error', () => resolve(null));
     req.write(data);
     req.end();
   });
@@ -741,13 +809,13 @@ function cosineSimilarity(a: number[], b: number[]): number {
 async function semanticSearch(
   query: string,
   limit: number = 20
-): Promise<{ results: any[]; method: "semantic" | "keyword" }> {
+): Promise<{ results: any[]; method: 'semantic' | 'keyword' }> {
   const queryEmbedding = await getEmbedding(query);
 
   if (!queryEmbedding) {
     // Fallback to keyword search
     const results = await searchMessagesFTS(query, { limit });
-    return { results, method: "keyword" };
+    return { results, method: 'keyword' };
   }
 
   // Get recent messages for semantic search
@@ -775,7 +843,9 @@ async function semanticSearch(
   const scoredMessages = await Promise.all(
     messages.map(async (msg) => {
       const embedding = await getEmbedding(msg.text);
-      const similarity = embedding ? cosineSimilarity(queryEmbedding, embedding) : 0;
+      const similarity = embedding
+        ? cosineSimilarity(queryEmbedding, embedding)
+        : 0;
       return { ...msg, similarity };
     })
   );
@@ -791,11 +861,11 @@ async function semanticSearch(
       text: msg.text,
       timestamp: formatAppleTimestamp(msg.timestamp),
       is_from_me: msg.is_from_me === 1,
-      contact: msg.contact_id || "Unknown",
-      chat_name: msg.chat_name || msg.contact_id || "Unknown",
+      contact: msg.contact_id || 'Unknown',
+      chat_name: msg.chat_name || msg.contact_id || 'Unknown',
       similarity_score: msg.similarity.toFixed(4),
     })),
-    method: "semantic",
+    method: 'semantic',
   };
 }
 
@@ -805,11 +875,15 @@ async function semanticSearch(
 
 async function getRecentMessages(
   limit: number = 20,
-  options: { startDate?: string; endDate?: string; includeAttachments?: boolean } = {}
+  options: {
+    startDate?: string;
+    endDate?: string;
+    includeAttachments?: boolean;
+  } = {}
 ): Promise<any[]> {
   const { startDate, endDate, includeAttachments } = options;
 
-  let whereConditions = ["m.text IS NOT NULL AND m.text != ''"];
+  const whereConditions = ["m.text IS NOT NULL AND m.text != ''"];
 
   if (startDate) {
     const date = parseDate(startDate);
@@ -837,7 +911,7 @@ async function getRecentMessages(
     LEFT JOIN handle h ON m.handle_id = h.ROWID
     LEFT JOIN chat_message_join cmj ON m.ROWID = cmj.message_id
     LEFT JOIN chat c ON cmj.chat_id = c.ROWID
-    WHERE ${whereConditions.join(" AND ")}
+    WHERE ${whereConditions.join(' AND ')}
     ORDER BY m.date DESC
     LIMIT ${limit}
   `;
@@ -854,9 +928,9 @@ async function getRecentMessages(
         is_from_me: msg.is_from_me === 1,
         is_read: msg.is_read === 1,
         is_delivered: msg.is_delivered === 1,
-        contact: msg.contact_id || "Unknown",
+        contact: msg.contact_id || 'Unknown',
         contact_name: (await getContactName(msg.contact_id)) || undefined,
-        chat_name: msg.chat_name || msg.contact_id || "Unknown",
+        chat_name: msg.chat_name || msg.contact_id || 'Unknown',
         chat_identifier: msg.chat_identifier,
         has_attachments: msg.has_attachments === 1,
       };
@@ -901,7 +975,8 @@ async function getConversations(limit: number = 50): Promise<any[]> {
 
   return Promise.all(
     rows.map(async (chat) => {
-      const isGroup = chat.chat_identifier?.startsWith("chat") || chat.participant_count > 1;
+      const isGroup =
+        chat.chat_identifier?.startsWith('chat') || chat.participant_count > 1;
       let contactName = null;
 
       if (!isGroup && chat.chat_identifier) {
@@ -926,12 +1001,17 @@ async function getConversations(limit: number = 50): Promise<any[]> {
 
 async function getChatMessages(
   chatId: string,
-  options: { limit?: number; startDate?: string; endDate?: string; includeAttachments?: boolean } = {}
+  options: {
+    limit?: number;
+    startDate?: string;
+    endDate?: string;
+    includeAttachments?: boolean;
+  } = {}
 ): Promise<any[]> {
   const { limit = 50, startDate, endDate, includeAttachments } = options;
   const normalizedId = isEmail(chatId) ? chatId : normalizePhoneNumber(chatId);
 
-  let whereConditions = [
+  const whereConditions = [
     `(c.chat_identifier LIKE '%${normalizedId.replace(/'/g, "''")}%' OR h.id LIKE '%${normalizedId.replace(/'/g, "''")}%')`,
     "m.text IS NOT NULL AND m.text != ''",
   ];
@@ -960,7 +1040,7 @@ async function getChatMessages(
     LEFT JOIN handle h ON m.handle_id = h.ROWID
     LEFT JOIN chat_message_join cmj ON m.ROWID = cmj.message_id
     LEFT JOIN chat c ON cmj.chat_id = c.ROWID
-    WHERE ${whereConditions.join(" AND ")}
+    WHERE ${whereConditions.join(' AND ')}
     ORDER BY m.date DESC
     LIMIT ${limit}
   `;
@@ -1005,7 +1085,7 @@ async function sendMessage(
     recipient = validation.normalized;
   }
 
-  const escapedMessage = message.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const escapedMessage = message.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   const escapedRecipient = recipient.replace(/"/g, '\\"');
 
   // Try iMessage first
@@ -1019,7 +1099,7 @@ async function sendMessage(
 
   try {
     await execAsync(`osascript -e '${imessageScript.replace(/'/g, "'\\''")}'`);
-    return { success: true, service: "iMessage" };
+    return { success: true, service: 'iMessage' };
   } catch {
     // Try SMS as fallback
     const smsScript = `
@@ -1032,7 +1112,7 @@ async function sendMessage(
 
     try {
       await execAsync(`osascript -e '${smsScript.replace(/'/g, "'\\''")}'`);
-      return { success: true, service: "SMS" };
+      return { success: true, service: 'SMS' };
     } catch (smsError: any) {
       return {
         success: false,
@@ -1088,7 +1168,9 @@ async function openMessages(): Promise<{ success: boolean; error?: string }> {
   }
 }
 
-async function openConversation(recipient: string): Promise<{ success: boolean; error?: string }> {
+async function openConversation(
+  recipient: string
+): Promise<{ success: boolean; error?: string }> {
   // Normalize recipient
   if (!isEmail(recipient)) {
     const validation = validatePhoneNumber(recipient);
@@ -1111,9 +1193,11 @@ async function openConversation(recipient: string): Promise<{ success: boolean; 
   `;
 
   try {
-    await execAsync(`osascript -e '${script.replace(/'/g, "'\\''")}'`, { timeout: 10000 });
+    await execAsync(`osascript -e '${script.replace(/'/g, "'\\''")}'`, {
+      timeout: 10000,
+    });
     return { success: true };
-  } catch (error: any) {
+  } catch {
     // Even if the script fails, try to just open Messages
     await execAsync(`open -a Messages`);
     return { success: true };
@@ -1130,14 +1214,14 @@ interface ScheduledMessage {
   message: string;
   scheduledTime: string;
   created: string;
-  status: "pending" | "sent" | "failed" | "cancelled";
+  status: 'pending' | 'sent' | 'failed' | 'cancelled';
   error?: string;
 }
 
 async function loadScheduledMessages(): Promise<ScheduledMessage[]> {
   try {
     if (fs.existsSync(SCHEDULED_MESSAGES_PATH)) {
-      const data = fs.readFileSync(SCHEDULED_MESSAGES_PATH, "utf8");
+      const data = fs.readFileSync(SCHEDULED_MESSAGES_PATH, 'utf8');
       return JSON.parse(data);
     }
   } catch {
@@ -1146,7 +1230,9 @@ async function loadScheduledMessages(): Promise<ScheduledMessage[]> {
   return [];
 }
 
-async function saveScheduledMessages(messages: ScheduledMessage[]): Promise<void> {
+async function saveScheduledMessages(
+  messages: ScheduledMessage[]
+): Promise<void> {
   fs.writeFileSync(SCHEDULED_MESSAGES_PATH, JSON.stringify(messages, null, 2));
 }
 
@@ -1167,11 +1253,11 @@ async function scheduleMessage(
   // Validate scheduled time
   const scheduledDate = new Date(scheduledTime);
   if (isNaN(scheduledDate.getTime())) {
-    return { success: false, error: "Invalid scheduled time format" };
+    return { success: false, error: 'Invalid scheduled time format' };
   }
 
   if (scheduledDate <= new Date()) {
-    return { success: false, error: "Scheduled time must be in the future" };
+    return { success: false, error: 'Scheduled time must be in the future' };
   }
 
   const scheduled: ScheduledMessage = {
@@ -1180,7 +1266,7 @@ async function scheduleMessage(
     message,
     scheduledTime: scheduledDate.toISOString(),
     created: new Date().toISOString(),
-    status: "pending",
+    status: 'pending',
   };
 
   const messages = await loadScheduledMessages();
@@ -1194,25 +1280,34 @@ async function getScheduledMessages(): Promise<ScheduledMessage[]> {
   return loadScheduledMessages();
 }
 
-async function cancelScheduledMessage(id: string): Promise<{ success: boolean; error?: string }> {
+async function cancelScheduledMessage(
+  id: string
+): Promise<{ success: boolean; error?: string }> {
   const messages = await loadScheduledMessages();
   const index = messages.findIndex((m) => m.id === id);
 
   if (index === -1) {
-    return { success: false, error: "Scheduled message not found" };
+    return { success: false, error: 'Scheduled message not found' };
   }
 
-  if (messages[index].status !== "pending") {
-    return { success: false, error: `Cannot cancel message with status: ${messages[index].status}` };
+  if (messages[index].status !== 'pending') {
+    return {
+      success: false,
+      error: `Cannot cancel message with status: ${messages[index].status}`,
+    };
   }
 
-  messages[index].status = "cancelled";
+  messages[index].status = 'cancelled';
   await saveScheduledMessages(messages);
 
   return { success: true };
 }
 
-async function sendScheduledMessages(): Promise<{ sent: number; failed: number; results: any[] }> {
+async function sendScheduledMessages(): Promise<{
+  sent: number;
+  failed: number;
+  results: any[];
+}> {
   const messages = await loadScheduledMessages();
   const now = new Date();
   const results: any[] = [];
@@ -1220,7 +1315,7 @@ async function sendScheduledMessages(): Promise<{ sent: number; failed: number; 
   let failed = 0;
 
   for (const msg of messages) {
-    if (msg.status !== "pending") continue;
+    if (msg.status !== 'pending') continue;
 
     const scheduledTime = new Date(msg.scheduledTime);
     if (scheduledTime <= now) {
@@ -1228,14 +1323,14 @@ async function sendScheduledMessages(): Promise<{ sent: number; failed: number; 
       const result = await sendMessage(msg.recipient, msg.message);
 
       if (result.success) {
-        msg.status = "sent";
+        msg.status = 'sent';
         sent++;
-        results.push({ id: msg.id, status: "sent", recipient: msg.recipient });
+        results.push({ id: msg.id, status: 'sent', recipient: msg.recipient });
       } else {
-        msg.status = "failed";
+        msg.status = 'failed';
         msg.error = result.error;
         failed++;
-        results.push({ id: msg.id, status: "failed", error: result.error });
+        results.push({ id: msg.id, status: 'failed', error: result.error });
       }
     }
   }
@@ -1251,255 +1346,349 @@ async function sendScheduledMessages(): Promise<{ sent: number; failed: number; 
 
 const tools: Tool[] = [
   {
-    name: "imessage_check_permissions",
-    description: "Check what permissions are available for the iMessage MCP server (Messages database, Contacts, Automation).",
+    name: 'imessage_check_permissions',
+    description:
+      'Check what permissions are available for the iMessage MCP server (Messages database, Contacts, Automation).',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {},
       required: [],
     },
   },
   {
-    name: "imessage_get_recent",
-    description: "Get recent messages from Apple Messages with optional date filtering and attachment info.",
+    name: 'imessage_get_recent',
+    description:
+      'Get recent messages from Apple Messages with optional date filtering and attachment info.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        limit: { type: "number", description: "Maximum number of messages (default: 20)" },
-        start_date: { type: "string", description: "Filter messages after this date (ISO 8601 format)" },
-        end_date: { type: "string", description: "Filter messages before this date (ISO 8601 format)" },
-        include_attachments: { type: "boolean", description: "Include attachment details (default: false)" },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of messages (default: 20)',
+        },
+        start_date: {
+          type: 'string',
+          description: 'Filter messages after this date (ISO 8601 format)',
+        },
+        end_date: {
+          type: 'string',
+          description: 'Filter messages before this date (ISO 8601 format)',
+        },
+        include_attachments: {
+          type: 'boolean',
+          description: 'Include attachment details (default: false)',
+        },
       },
       required: [],
     },
   },
   {
-    name: "imessage_get_conversations",
-    description: "Get all conversations with contact names, message counts, and last message preview.",
+    name: 'imessage_get_conversations',
+    description:
+      'Get all conversations with contact names, message counts, and last message preview.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        limit: { type: "number", description: "Maximum number of conversations (default: 50)" },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of conversations (default: 50)',
+        },
       },
       required: [],
     },
   },
   {
-    name: "imessage_get_chat",
-    description: "Get messages from a specific conversation with date filtering and attachment support.",
+    name: 'imessage_get_chat',
+    description:
+      'Get messages from a specific conversation with date filtering and attachment support.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        chat_id: { type: "string", description: "Phone number (e.g., +1234567890) or email address" },
-        limit: { type: "number", description: "Maximum number of messages (default: 50)" },
-        start_date: { type: "string", description: "Filter messages after this date (ISO 8601)" },
-        end_date: { type: "string", description: "Filter messages before this date (ISO 8601)" },
-        include_attachments: { type: "boolean", description: "Include attachment details" },
+        chat_id: {
+          type: 'string',
+          description: 'Phone number (e.g., +1234567890) or email address',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of messages (default: 50)',
+        },
+        start_date: {
+          type: 'string',
+          description: 'Filter messages after this date (ISO 8601)',
+        },
+        end_date: {
+          type: 'string',
+          description: 'Filter messages before this date (ISO 8601)',
+        },
+        include_attachments: {
+          type: 'boolean',
+          description: 'Include attachment details',
+        },
       },
-      required: ["chat_id"],
+      required: ['chat_id'],
     },
   },
   {
-    name: "imessage_search",
-    description: "Search messages with text query, date range, and contact filters.",
+    name: 'imessage_search',
+    description:
+      'Search messages with text query, date range, and contact filters.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        query: { type: "string", description: "Text to search for" },
-        limit: { type: "number", description: "Maximum results (default: 50)" },
-        start_date: { type: "string", description: "Filter after this date (ISO 8601)" },
-        end_date: { type: "string", description: "Filter before this date (ISO 8601)" },
-        contact: { type: "string", description: "Filter by contact phone/email" },
-        chat_id: { type: "string", description: "Filter by specific chat" },
+        query: { type: 'string', description: 'Text to search for' },
+        limit: { type: 'number', description: 'Maximum results (default: 50)' },
+        start_date: {
+          type: 'string',
+          description: 'Filter after this date (ISO 8601)',
+        },
+        end_date: {
+          type: 'string',
+          description: 'Filter before this date (ISO 8601)',
+        },
+        contact: {
+          type: 'string',
+          description: 'Filter by contact phone/email',
+        },
+        chat_id: { type: 'string', description: 'Filter by specific chat' },
       },
-      required: ["query"],
+      required: ['query'],
     },
   },
   {
-    name: "imessage_semantic_search",
-    description: "Search messages by meaning/concept using AI embeddings. Falls back to keyword search if no API key. Set OPENAI_API_KEY env var for semantic search.",
+    name: 'imessage_semantic_search',
+    description:
+      'Search messages by meaning/concept using AI embeddings. Falls back to keyword search if no API key. Set OPENAI_API_KEY env var for semantic search.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        query: { type: "string", description: "Concept or meaning to search for" },
-        limit: { type: "number", description: "Maximum results (default: 20)" },
+        query: {
+          type: 'string',
+          description: 'Concept or meaning to search for',
+        },
+        limit: { type: 'number', description: 'Maximum results (default: 20)' },
       },
-      required: ["query"],
+      required: ['query'],
     },
   },
   {
-    name: "imessage_send",
-    description: "Send a message via iMessage (with SMS fallback). Validates phone numbers automatically.",
+    name: 'imessage_send',
+    description:
+      'Send a message via iMessage (with SMS fallback). Validates phone numbers automatically.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        recipient: { type: "string", description: "Phone number or email address" },
-        message: { type: "string", description: "Message text to send" },
+        recipient: {
+          type: 'string',
+          description: 'Phone number or email address',
+        },
+        message: { type: 'string', description: 'Message text to send' },
       },
-      required: ["recipient", "message"],
+      required: ['recipient', 'message'],
     },
   },
   {
-    name: "imessage_check_imessage",
-    description: "Check if a recipient uses iMessage or SMS based on chat history.",
+    name: 'imessage_check_imessage',
+    description:
+      'Check if a recipient uses iMessage or SMS based on chat history.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        recipient: { type: "string", description: "Phone number or email to check" },
+        recipient: {
+          type: 'string',
+          description: 'Phone number or email to check',
+        },
       },
-      required: ["recipient"],
+      required: ['recipient'],
     },
   },
   {
-    name: "imessage_get_contacts",
-    description: "Get contacts you've messaged with names, message counts, and activity stats.",
+    name: 'imessage_get_contacts',
+    description:
+      "Get contacts you've messaged with names, message counts, and activity stats.",
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        limit: { type: "number", description: "Maximum contacts (default: 50)" },
+        limit: {
+          type: 'number',
+          description: 'Maximum contacts (default: 50)',
+        },
       },
       required: [],
     },
   },
   {
-    name: "imessage_get_group_chats",
-    description: "Get all group conversations with participants and their names.",
+    name: 'imessage_get_group_chats',
+    description:
+      'Get all group conversations with participants and their names.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        limit: { type: "number", description: "Maximum groups (default: 50)" },
+        limit: { type: 'number', description: 'Maximum groups (default: 50)' },
       },
       required: [],
     },
   },
   {
-    name: "imessage_get_context",
-    description: "Get messages surrounding a specific message for context.",
+    name: 'imessage_get_context',
+    description: 'Get messages surrounding a specific message for context.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        message_id: { type: "number", description: "The message ID to get context for" },
-        before: { type: "number", description: "Messages before (default: 5)" },
-        after: { type: "number", description: "Messages after (default: 5)" },
+        message_id: {
+          type: 'number',
+          description: 'The message ID to get context for',
+        },
+        before: { type: 'number', description: 'Messages before (default: 5)' },
+        after: { type: 'number', description: 'Messages after (default: 5)' },
       },
-      required: ["message_id"],
+      required: ['message_id'],
     },
   },
   {
-    name: "imessage_get_attachments",
-    description: "Get attachments from messages, optionally filtered by type.",
+    name: 'imessage_get_attachments',
+    description: 'Get attachments from messages, optionally filtered by type.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        limit: { type: "number", description: "Maximum attachments (default: 50)" },
-        mime_filter: { type: "string", description: "Filter by MIME type (e.g., 'image', 'video', 'pdf')" },
-        message_id: { type: "number", description: "Get attachments for specific message" },
+        limit: {
+          type: 'number',
+          description: 'Maximum attachments (default: 50)',
+        },
+        mime_filter: {
+          type: 'string',
+          description: "Filter by MIME type (e.g., 'image', 'video', 'pdf')",
+        },
+        message_id: {
+          type: 'number',
+          description: 'Get attachments for specific message',
+        },
       },
       required: [],
     },
   },
   {
-    name: "imessage_get_reactions",
-    description: "Get tapback reactions (love, like, laugh, etc.) for a specific message.",
+    name: 'imessage_get_reactions',
+    description:
+      'Get tapback reactions (love, like, laugh, etc.) for a specific message.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        message_id: { type: "number", description: "The message ID to get reactions for" },
+        message_id: {
+          type: 'number',
+          description: 'The message ID to get reactions for',
+        },
       },
-      required: ["message_id"],
+      required: ['message_id'],
     },
   },
   {
-    name: "imessage_get_read_receipt",
-    description: "Get read/delivered status for a specific message.",
+    name: 'imessage_get_read_receipt',
+    description: 'Get read/delivered status for a specific message.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        message_id: { type: "number", description: "The message ID to check" },
+        message_id: { type: 'number', description: 'The message ID to check' },
       },
-      required: ["message_id"],
+      required: ['message_id'],
     },
   },
   {
-    name: "imessage_validate_phone",
-    description: "Validate and normalize a phone number.",
+    name: 'imessage_validate_phone',
+    description: 'Validate and normalize a phone number.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        phone: { type: "string", description: "Phone number to validate" },
+        phone: { type: 'string', description: 'Phone number to validate' },
       },
-      required: ["phone"],
+      required: ['phone'],
     },
   },
   {
-    name: "imessage_lookup_contact",
+    name: 'imessage_lookup_contact',
     description: "Look up a contact's name from their phone number or email.",
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        identifier: { type: "string", description: "Phone number or email address" },
+        identifier: {
+          type: 'string',
+          description: 'Phone number or email address',
+        },
       },
-      required: ["identifier"],
+      required: ['identifier'],
     },
   },
   {
-    name: "imessage_open",
-    description: "Open the Messages app.",
+    name: 'imessage_open',
+    description: 'Open the Messages app.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {},
       required: [],
     },
   },
   {
-    name: "imessage_open_conversation",
-    description: "Open a conversation with a specific contact in Messages.",
+    name: 'imessage_open_conversation',
+    description: 'Open a conversation with a specific contact in Messages.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        recipient: { type: "string", description: "Phone number or email address" },
+        recipient: {
+          type: 'string',
+          description: 'Phone number or email address',
+        },
       },
-      required: ["recipient"],
+      required: ['recipient'],
     },
   },
   {
-    name: "imessage_schedule_send",
-    description: "Schedule a message to be sent at a future time.",
+    name: 'imessage_schedule_send',
+    description: 'Schedule a message to be sent at a future time.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        recipient: { type: "string", description: "Phone number or email address" },
-        message: { type: "string", description: "Message content to send" },
-        scheduled_time: { type: "string", description: "When to send (ISO 8601 format, e.g., 2024-12-25T10:00:00)" },
+        recipient: {
+          type: 'string',
+          description: 'Phone number or email address',
+        },
+        message: { type: 'string', description: 'Message content to send' },
+        scheduled_time: {
+          type: 'string',
+          description:
+            'When to send (ISO 8601 format, e.g., 2024-12-25T10:00:00)',
+        },
       },
-      required: ["recipient", "message", "scheduled_time"],
+      required: ['recipient', 'message', 'scheduled_time'],
     },
   },
   {
-    name: "imessage_get_scheduled",
-    description: "Get all scheduled messages.",
+    name: 'imessage_get_scheduled',
+    description: 'Get all scheduled messages.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {},
       required: [],
     },
   },
   {
-    name: "imessage_cancel_scheduled",
-    description: "Cancel a scheduled message.",
+    name: 'imessage_cancel_scheduled',
+    description: 'Cancel a scheduled message.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        id: { type: "string", description: "The scheduled message ID to cancel" },
+        id: {
+          type: 'string',
+          description: 'The scheduled message ID to cancel',
+        },
       },
-      required: ["id"],
+      required: ['id'],
     },
   },
   {
-    name: "imessage_send_scheduled_now",
-    description: "Send all scheduled messages that are due (scheduled time has passed).",
+    name: 'imessage_send_scheduled_now',
+    description:
+      'Send all scheduled messages that are due (scheduled time has passed).',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {},
       required: [],
     },
@@ -1510,14 +1699,17 @@ const tools: Tool[] = [
 // Tool Handler
 // ============================================================================
 
-async function handleToolCall(name: string, args: Record<string, any>): Promise<string> {
+async function handleToolCall(
+  name: string,
+  args: Record<string, any>
+): Promise<string> {
   switch (name) {
-    case "imessage_check_permissions": {
+    case 'imessage_check_permissions': {
       const status = await checkPermissions();
       return JSON.stringify(status, null, 2);
     }
 
-    case "imessage_get_recent": {
+    case 'imessage_get_recent': {
       const messages = await getRecentMessages(args.limit || 20, {
         startDate: args.start_date,
         endDate: args.end_date,
@@ -1526,13 +1718,13 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
       return JSON.stringify(messages, null, 2);
     }
 
-    case "imessage_get_conversations": {
+    case 'imessage_get_conversations': {
       const conversations = await getConversations(args.limit || 50);
       return JSON.stringify(conversations, null, 2);
     }
 
-    case "imessage_get_chat": {
-      if (!args.chat_id) throw new Error("chat_id is required");
+    case 'imessage_get_chat': {
+      if (!args.chat_id) throw new Error('chat_id is required');
       const messages = await getChatMessages(args.chat_id, {
         limit: args.limit,
         startDate: args.start_date,
@@ -1542,8 +1734,8 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
       return JSON.stringify(messages, null, 2);
     }
 
-    case "imessage_search": {
-      if (!args.query) throw new Error("query is required");
+    case 'imessage_search': {
+      if (!args.query) throw new Error('query is required');
       const messages = await searchMessagesFTS(args.query, {
         limit: args.limit,
         startDate: args.start_date,
@@ -1554,114 +1746,139 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
       return JSON.stringify(messages, null, 2);
     }
 
-    case "imessage_semantic_search": {
-      if (!args.query) throw new Error("query is required");
+    case 'imessage_semantic_search': {
+      if (!args.query) throw new Error('query is required');
       const result = await semanticSearch(args.query, args.limit || 20);
-      return JSON.stringify({
-        search_method: result.method,
-        note: result.method === "keyword" ? "Set OPENAI_API_KEY env var for semantic search" : undefined,
-        results: result.results,
-      }, null, 2);
+      return JSON.stringify(
+        {
+          search_method: result.method,
+          note:
+            result.method === 'keyword'
+              ? 'Set OPENAI_API_KEY env var for semantic search'
+              : undefined,
+          results: result.results,
+        },
+        null,
+        2
+      );
     }
 
-    case "imessage_send": {
-      if (!args.recipient || !args.message) throw new Error("recipient and message are required");
+    case 'imessage_send': {
+      if (!args.recipient || !args.message)
+        throw new Error('recipient and message are required');
       const result = await sendMessage(args.recipient, args.message);
       return JSON.stringify(result, null, 2);
     }
 
-    case "imessage_check_imessage": {
-      if (!args.recipient) throw new Error("recipient is required");
+    case 'imessage_check_imessage': {
+      if (!args.recipient) throw new Error('recipient is required');
       const result = await checkiMessageAvailability(args.recipient);
       return JSON.stringify(result, null, 2);
     }
 
-    case "imessage_get_contacts": {
+    case 'imessage_get_contacts': {
       const contacts = await getContacts(args.limit || 50);
       return JSON.stringify(contacts, null, 2);
     }
 
-    case "imessage_get_group_chats": {
+    case 'imessage_get_group_chats': {
       const groups = await getGroupChats(args.limit || 50);
       return JSON.stringify(groups, null, 2);
     }
 
-    case "imessage_get_context": {
-      if (!args.message_id) throw new Error("message_id is required");
-      const context = await getMessageContext(args.message_id, args.before || 5, args.after || 5);
+    case 'imessage_get_context': {
+      if (!args.message_id) throw new Error('message_id is required');
+      const context = await getMessageContext(
+        args.message_id,
+        args.before || 5,
+        args.after || 5
+      );
       return JSON.stringify(context, null, 2);
     }
 
-    case "imessage_get_attachments": {
+    case 'imessage_get_attachments': {
       if (args.message_id) {
         const attachments = await getMessageAttachments(args.message_id);
         return JSON.stringify(attachments, null, 2);
       }
-      const attachments = await getAttachments(args.limit || 50, args.mime_filter);
+      const attachments = await getAttachments(
+        args.limit || 50,
+        args.mime_filter
+      );
       return JSON.stringify(attachments, null, 2);
     }
 
-    case "imessage_get_reactions": {
-      if (!args.message_id) throw new Error("message_id is required");
+    case 'imessage_get_reactions': {
+      if (!args.message_id) throw new Error('message_id is required');
       const reactions = await getMessageReactions(args.message_id);
       return JSON.stringify(reactions, null, 2);
     }
 
-    case "imessage_get_read_receipt": {
-      if (!args.message_id) throw new Error("message_id is required");
+    case 'imessage_get_read_receipt': {
+      if (!args.message_id) throw new Error('message_id is required');
       const receipt = await getReadReceipt(args.message_id);
       return JSON.stringify(receipt, null, 2);
     }
 
-    case "imessage_validate_phone": {
-      if (!args.phone) throw new Error("phone is required");
+    case 'imessage_validate_phone': {
+      if (!args.phone) throw new Error('phone is required');
       const result = validatePhoneNumber(args.phone);
       return JSON.stringify(result, null, 2);
     }
 
-    case "imessage_lookup_contact": {
-      if (!args.identifier) throw new Error("identifier is required");
-      const normalized = isEmail(args.identifier) ? args.identifier : normalizePhoneNumber(args.identifier);
+    case 'imessage_lookup_contact': {
+      if (!args.identifier) throw new Error('identifier is required');
+      const normalized = isEmail(args.identifier)
+        ? args.identifier
+        : normalizePhoneNumber(args.identifier);
       const name = await getContactName(normalized);
-      return JSON.stringify({
-        identifier: args.identifier,
-        normalized: normalized,
-        name: name || null,
-        found: !!name,
-      }, null, 2);
+      return JSON.stringify(
+        {
+          identifier: args.identifier,
+          normalized: normalized,
+          name: name || null,
+          found: !!name,
+        },
+        null,
+        2
+      );
     }
 
-    case "imessage_open": {
+    case 'imessage_open': {
       const result = await openMessages();
       return JSON.stringify(result, null, 2);
     }
 
-    case "imessage_open_conversation": {
-      if (!args.recipient) throw new Error("recipient is required");
+    case 'imessage_open_conversation': {
+      if (!args.recipient) throw new Error('recipient is required');
       const result = await openConversation(args.recipient);
       return JSON.stringify(result, null, 2);
     }
 
-    case "imessage_schedule_send": {
+    case 'imessage_schedule_send': {
       if (!args.recipient || !args.message || !args.scheduled_time) {
-        throw new Error("recipient, message, and scheduled_time are required");
+        throw new Error('recipient, message, and scheduled_time are required');
       }
-      const result = await scheduleMessage(args.recipient, args.message, args.scheduled_time);
+      const result = await scheduleMessage(
+        args.recipient,
+        args.message,
+        args.scheduled_time
+      );
       return JSON.stringify(result, null, 2);
     }
 
-    case "imessage_get_scheduled": {
+    case 'imessage_get_scheduled': {
       const scheduled = await getScheduledMessages();
       return JSON.stringify(scheduled, null, 2);
     }
 
-    case "imessage_cancel_scheduled": {
-      if (!args.id) throw new Error("id is required");
+    case 'imessage_cancel_scheduled': {
+      if (!args.id) throw new Error('id is required');
       const result = await cancelScheduledMessage(args.id);
       return JSON.stringify(result, null, 2);
     }
 
-    case "imessage_send_scheduled_now": {
+    case 'imessage_send_scheduled_now': {
       const result = await sendScheduledMessages();
       return JSON.stringify(result, null, 2);
     }
@@ -1677,7 +1894,7 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
 
 async function main() {
   const server = new Server(
-    { name: "imessage-mcp", version: "3.0.0" },
+    { name: 'imessage-mcp', version: '3.0.0' },
     { capabilities: { tools: {} } }
   );
 
@@ -1688,10 +1905,10 @@ async function main() {
 
     try {
       const result = await handleToolCall(name, args || {});
-      return { content: [{ type: "text", text: result }] };
+      return { content: [{ type: 'text', text: result }] };
     } catch (error: any) {
       return {
-        content: [{ type: "text", text: `Error: ${error.message}` }],
+        content: [{ type: 'text', text: `Error: ${error.message}` }],
         isError: true,
       };
     }
@@ -1700,10 +1917,10 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  console.error("iMessage MCP server v3.0.0 running on stdio");
+  console.error('iMessage MCP server v3.0.0 running on stdio');
 }
 
 main().catch((error) => {
-  console.error("Fatal error:", error);
+  console.error('Fatal error:', error);
   process.exit(1);
 });

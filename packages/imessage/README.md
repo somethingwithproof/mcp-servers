@@ -5,6 +5,7 @@ A comprehensive Model Context Protocol (MCP) server for iMessage on macOS. Provi
 ## Features
 
 ### Core Messaging
+
 - **Read Recent Messages** - Get latest messages with contact names and read receipts
 - **List Conversations** - View all chats with message counts and previews
 - **Get Chat History** - Retrieve messages from specific conversations
@@ -12,22 +13,26 @@ A comprehensive Model Context Protocol (MCP) server for iMessage on macOS. Provi
 - **Group Chat Support** - Full support for group conversations with participant names
 
 ### Advanced Search
+
 - **Text Search** - Search with date range and contact filters
 - **Semantic Search** - Find messages by meaning/concept using AI embeddings (optional OpenAI API)
 - **Date Filtering** - Filter messages by start/end dates (ISO 8601)
 
 ### Contact Integration
+
 - **Contact Resolution** - Automatically resolves phone numbers to contact names
 - **Contact Lookup** - Look up names from phone numbers or emails
 - **Phone Validation** - Validates and normalizes phone numbers
 
 ### Message Details
+
 - **Attachments** - List and filter attachments by type (images, videos, PDFs)
 - **Reactions/Tapbacks** - Get love, like, laugh, and other reactions on messages
 - **Read Receipts** - Check delivered/read status and timestamps
 - **Message Context** - Get surrounding messages for conversation context
 
 ### Utilities
+
 - **Permission Check** - Verify database, contacts, and automation access
 - **iMessage Check** - Determine if a contact uses iMessage or SMS
 
@@ -61,15 +66,18 @@ npm run build
 ### 1. Grant Permissions
 
 **Full Disk Access** (Required):
+
 1. Open **System Settings** > **Privacy & Security** > **Full Disk Access**
 2. Add your terminal app (Terminal, iTerm2, VS Code, etc.)
 3. Restart the terminal
 
 **Contacts** (Optional - for name resolution):
+
 1. Open **System Settings** > **Privacy & Security** > **Contacts**
 2. Add your terminal app
 
 **Automation** (Optional - for sending messages):
+
 - Permission is requested automatically when sending the first message
 
 ### 2. Configure Claude Desktop
@@ -109,48 +117,48 @@ For semantic search, add your OpenAI API key:
 
 ### Permission & Status
 
-| Tool | Description |
-|------|-------------|
+| Tool                         | Description                                                 |
+| ---------------------------- | ----------------------------------------------------------- |
 | `imessage_check_permissions` | Check access to Messages database, Contacts, and Automation |
-| `imessage_check_imessage` | Check if a recipient uses iMessage or SMS |
-| `imessage_validate_phone` | Validate and normalize a phone number |
+| `imessage_check_imessage`    | Check if a recipient uses iMessage or SMS                   |
+| `imessage_validate_phone`    | Validate and normalize a phone number                       |
 
 ### Reading Messages
 
-| Tool | Description |
-|------|-------------|
-| `imessage_get_recent` | Get recent messages with optional date filtering |
-| `imessage_get_conversations` | List all conversations with previews |
-| `imessage_get_chat` | Get messages from a specific conversation |
-| `imessage_get_group_chats` | List group chats with participants |
-| `imessage_get_context` | Get messages before/after a specific message |
+| Tool                         | Description                                      |
+| ---------------------------- | ------------------------------------------------ |
+| `imessage_get_recent`        | Get recent messages with optional date filtering |
+| `imessage_get_conversations` | List all conversations with previews             |
+| `imessage_get_chat`          | Get messages from a specific conversation        |
+| `imessage_get_group_chats`   | List group chats with participants               |
+| `imessage_get_context`       | Get messages before/after a specific message     |
 
 ### Search
 
-| Tool | Description |
-|------|-------------|
-| `imessage_search` | Text search with date/contact filters |
+| Tool                       | Description                                          |
+| -------------------------- | ---------------------------------------------------- |
+| `imessage_search`          | Text search with date/contact filters                |
 | `imessage_semantic_search` | AI-powered semantic search (requires OpenAI API key) |
 
 ### Contacts
 
-| Tool | Description |
-|------|-------------|
-| `imessage_get_contacts` | List contacts with message statistics |
-| `imessage_lookup_contact` | Look up a contact's name |
+| Tool                      | Description                           |
+| ------------------------- | ------------------------------------- |
+| `imessage_get_contacts`   | List contacts with message statistics |
+| `imessage_lookup_contact` | Look up a contact's name              |
 
 ### Attachments & Details
 
-| Tool | Description |
-|------|-------------|
-| `imessage_get_attachments` | List attachments, filter by MIME type |
-| `imessage_get_reactions` | Get tapback reactions for a message |
-| `imessage_get_read_receipt` | Get read/delivered status |
+| Tool                        | Description                           |
+| --------------------------- | ------------------------------------- |
+| `imessage_get_attachments`  | List attachments, filter by MIME type |
+| `imessage_get_reactions`    | Get tapback reactions for a message   |
+| `imessage_get_read_receipt` | Get read/delivered status             |
 
 ### Sending
 
-| Tool | Description |
-|------|-------------|
+| Tool            | Description                                 |
+| --------------- | ------------------------------------------- |
 | `imessage_send` | Send a message (iMessage with SMS fallback) |
 
 ## Example Usage
@@ -170,6 +178,7 @@ Once configured, ask Claude to:
 ## Semantic Search
 
 Semantic search finds messages by meaning, not just keywords. For example:
+
 - Query: "food plans" matches "Want to grab dinner?" and "Let's get lunch tomorrow"
 - Query: "feeling sick" matches "I have a cold" and "Not feeling well today"
 
@@ -188,21 +197,26 @@ Semantic search finds messages by meaning, not just keywords. For example:
 ## Troubleshooting
 
 ### "Cannot access Messages database"
+
 Grant Full Disk Access to your terminal app and restart it.
 
 ### "Contacts: NOT accessible"
+
 Grant Contacts permission in System Settings > Privacy & Security > Contacts.
 
 ### "Failed to send message"
+
 1. Ensure Messages app is open
 2. Grant Automation permission when prompted
 3. Verify the recipient is a valid phone number or email
 
 ### Contact names not showing
+
 1. Grant Contacts permission
 2. Ensure the contact exists in your Contacts app with that phone number/email
 
 ### Semantic search not working
+
 1. Verify `OPENAI_API_KEY` is set correctly
 2. Check your OpenAI API quota
 
@@ -217,6 +231,7 @@ Contributions welcome! Please open an issue or submit a PR.
 ## Changelog
 
 ### v2.0.0
+
 - Renamed from ichat-mcp to imessage-mcp
 - Standardized all tool names to `imessage_` prefix
 - Added contact name resolution from Contacts.app
