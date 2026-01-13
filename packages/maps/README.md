@@ -57,12 +57,14 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 ## Example Usage
 
 ### Search
+
 ```
 Search for coffee shops near me
 Find the Eiffel Tower on maps
 ```
 
 ### Directions
+
 ```
 Get directions to the airport
 Get walking directions to Central Park
@@ -70,12 +72,14 @@ Get transit directions from downtown to the museum
 ```
 
 ### Show Location
+
 ```
 Show me 1600 Pennsylvania Avenue on the map
 Show coordinates 37.7749, -122.4194
 ```
 
 ### Nearby
+
 ```
 Find restaurants nearby
 Find gas stations near Times Square
