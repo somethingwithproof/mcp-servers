@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
   Tool,
-} from "@modelcontextprotocol/sdk/types.js";
-import { exec } from "child_process";
-import { promisify } from "util";
+} from '@modelcontextprotocol/sdk/types.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
@@ -25,9 +25,9 @@ async function runAppleScript(script: string): Promise<string> {
     });
     return result.stdout.trim();
   } catch (error: any) {
-    if (error.message?.includes("Not authorized")) {
+    if (error.message?.includes('Not authorized')) {
       throw new Error(
-        "Calendar access denied. Grant permission in System Settings > Privacy & Security > Calendars"
+        'Calendar access denied. Grant permission in System Settings > Privacy & Security > Calendars'
       );
     }
     throw error;
@@ -49,13 +49,13 @@ async function runAppleScriptJSON<T>(script: string): Promise<T> {
 // ============================================================================
 
 function formatDateForAppleScript(date: Date): string {
-  return date.toLocaleString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
+  return date.toLocaleString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
     hour12: true,
   });
 }
@@ -66,12 +66,12 @@ function parseDate(dateStr: string): Date | null {
 }
 
 function formatISODate(dateStr: string): string {
-  if (!dateStr || dateStr === "missing value") return "";
+  if (!dateStr || dateStr === 'missing value') return '';
   try {
     const date = new Date(dateStr);
-    return isNaN(date.getTime()) ? "" : date.toISOString();
+    return isNaN(date.getTime()) ? '' : date.toISOString();
   } catch {
-    return "";
+    return '';
   }
 }
 
@@ -100,9 +100,9 @@ async function checkPermissions(): Promise<PermissionStatus> {
   try {
     await runAppleScript('tell application "Calendar" to count of calendars');
     status.calendar = true;
-    status.details.push("Calendar: accessible");
+    status.details.push('Calendar: accessible');
   } catch {
-    status.details.push("Calendar: NOT accessible (grant Calendar permission in System Settings)");
+    status.details.push('Calendar: NOT accessible (grant Calendar permission in System Settings)');
   }
 
   return status;
@@ -186,13 +186,11 @@ async function getEvents(
   const end = endDate ? parseDate(endDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
   if (!start || !end) {
-    throw new Error("Invalid date format");
+    throw new Error('Invalid date format');
   }
 
   const dateRange = getDateRange(start, end);
-  const calendarFilter = calendar
-    ? `calendar "${calendar.replace(/"/g, '\\"')}"`
-    : "calendars";
+  const _calendarFilter = calendar ? `calendar "${calendar.replace(/"/g, '\\"')}"` : 'calendars';
 
   const script = `
     tell application "Calendar"
@@ -204,7 +202,7 @@ async function getEvents(
       if "${calendar}" is "" then
         set targetCals to calendars
       else
-        set targetCals to {calendar "${calendar?.replace(/"/g, '\\"') || ""}"}
+        set targetCals to {calendar "${calendar?.replace(/"/g, '\\"') || ''}"}
       end if
 
       repeat with theCal in targetCals
@@ -296,7 +294,7 @@ async function createEvent(options: {
 
   const start = parseDate(startDate);
   if (!start) {
-    return { success: false, error: "Invalid start date" };
+    return { success: false, error: 'Invalid start date' };
   }
 
   // Default end date to 1 hour after start for non-all-day events
@@ -305,24 +303,24 @@ async function createEvent(options: {
     : new Date(start.getTime() + (allDay ? 24 * 60 * 60 * 1000 : 60 * 60 * 1000));
 
   if (!end) {
-    return { success: false, error: "Invalid end date" };
+    return { success: false, error: 'Invalid end date' };
   }
 
   const escapedSummary = summary.replace(/"/g, '\\"');
-  const escapedDesc = description?.replace(/"/g, '\\"') || "";
-  const escapedLoc = location?.replace(/"/g, '\\"') || "";
-  const escapedUrl = url?.replace(/"/g, '\\"') || "";
+  const escapedDesc = description?.replace(/"/g, '\\"') || '';
+  const escapedLoc = location?.replace(/"/g, '\\"') || '';
+  const escapedUrl = url?.replace(/"/g, '\\"') || '';
 
   const calendarTarget = calendar
     ? `calendar "${calendar.replace(/"/g, '\\"')}"`
-    : "first calendar";
+    : 'first calendar';
 
   const script = `
     tell application "Calendar"
       set newEvent to make new event at end of events of ${calendarTarget} with properties {summary:"${escapedSummary}", start date:date "${formatDateForAppleScript(start)}", end date:date "${formatDateForAppleScript(end)}", allday event:${allDay}}
-      ${description ? `set description of newEvent to "${escapedDesc}"` : ""}
-      ${location ? `set location of newEvent to "${escapedLoc}"` : ""}
-      ${url ? `set url of newEvent to "${escapedUrl}"` : ""}
+      ${description ? `set description of newEvent to "${escapedDesc}"` : ''}
+      ${location ? `set location of newEvent to "${escapedLoc}"` : ''}
+      ${url ? `set url of newEvent to "${escapedUrl}"` : ''}
       return uid of newEvent
     end tell
   `;
@@ -349,7 +347,7 @@ async function updateEvent(
 ): Promise<{ success: boolean; error?: string }> {
   const { summary, startDate, endDate, description, location, allDay } = updates;
 
-  let updateLines: string[] = [];
+  const updateLines: string[] = [];
 
   if (summary !== undefined) {
     updateLines.push(`set summary of theEvent to "${summary.replace(/"/g, '\\"')}"`);
@@ -377,14 +375,14 @@ async function updateEvent(
   }
 
   if (updateLines.length === 0) {
-    return { success: false, error: "No updates provided" };
+    return { success: false, error: 'No updates provided' };
   }
 
   const script = `
     tell application "Calendar"
       set theCal to calendar "${calendarName.replace(/"/g, '\\"')}"
       set theEvent to (first event of theCal whose uid is "${eventId.replace(/"/g, '\\"')}")
-      ${updateLines.join("\n      ")}
+      ${updateLines.join('\n      ')}
       return "done"
     end tell
   `;
@@ -442,7 +440,7 @@ async function searchEvents(
       set startDate to date "${dateRange.start}"
       set endDate to date "${dateRange.end}"
 
-      ${calendar ? `set targetCals to {calendar "${calendar.replace(/"/g, '\\"')}"}` : "set targetCals to calendars"}
+      ${calendar ? `set targetCals to {calendar "${calendar.replace(/"/g, '\\"')}"}` : 'set targetCals to calendars'}
 
       repeat with theCal in targetCals
         set calEvents to (events of theCal whose start date ≥ startDate and start date ≤ endDate)
@@ -575,7 +573,7 @@ async function findAvailableTime(options: {
 
   const targetDate = parseDate(date);
   if (!targetDate) {
-    throw new Error("Invalid date format");
+    throw new Error('Invalid date format');
   }
 
   // Get events for the target date
@@ -592,8 +590,8 @@ async function findAvailableTime(options: {
 
   // Build busy times
   const busyTimes: { start: Date; end: Date }[] = events
-    .filter(e => !e.allDay)
-    .map(e => ({
+    .filter((e) => !e.allDay)
+    .map((e) => ({
       start: new Date(e.startDate),
       end: new Date(e.endDate),
     }))
@@ -653,7 +651,7 @@ async function findAvailableTime(options: {
 // Recurring Events
 // ============================================================================
 
-type RecurrenceFrequency = "daily" | "weekly" | "monthly" | "yearly";
+type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 interface RecurrenceRule {
   frequency: RecurrenceFrequency;
@@ -685,7 +683,7 @@ async function createRecurringEvent(options: {
 
   const start = parseDate(startDate);
   if (!start) {
-    return { success: false, error: "Invalid start date" };
+    return { success: false, error: 'Invalid start date' };
   }
 
   const end = endDate
@@ -693,34 +691,34 @@ async function createRecurringEvent(options: {
     : new Date(start.getTime() + (allDay ? 24 * 60 * 60 * 1000 : 60 * 60 * 1000));
 
   if (!end) {
-    return { success: false, error: "Invalid end date" };
+    return { success: false, error: 'Invalid end date' };
   }
 
   const escapedSummary = summary.replace(/"/g, '\\"');
-  const escapedDesc = description?.replace(/"/g, '\\"') || "";
-  const escapedLoc = location?.replace(/"/g, '\\"') || "";
+  const escapedDesc = description?.replace(/"/g, '\\"') || '';
+  const escapedLoc = location?.replace(/"/g, '\\"') || '';
 
   const calendarTarget = calendar
     ? `calendar "${calendar.replace(/"/g, '\\"')}"`
-    : "first calendar";
+    : 'first calendar';
 
   // Build recurrence string for AppleScript
   const freqMap: Record<RecurrenceFrequency, string> = {
-    daily: "daily",
-    weekly: "weekly",
-    monthly: "monthly",
-    yearly: "yearly",
+    daily: 'daily',
+    weekly: 'weekly',
+    monthly: 'monthly',
+    yearly: 'yearly',
   };
 
   const interval = recurrence.interval || 1;
-  const recurrenceStr = `${freqMap[recurrence.frequency]}`;
+  const _recurrenceStr = `${freqMap[recurrence.frequency]}`;
 
   const script = `
     tell application "Calendar"
       set newEvent to make new event at end of events of ${calendarTarget} with properties {summary:"${escapedSummary}", start date:date "${formatDateForAppleScript(start)}", end date:date "${formatDateForAppleScript(end)}", allday event:${allDay}}
-      ${description ? `set description of newEvent to "${escapedDesc}"` : ""}
-      ${location ? `set location of newEvent to "${escapedLoc}"` : ""}
-      set recurrence of newEvent to "FREQ=${recurrence.frequency.toUpperCase()};INTERVAL=${interval}${recurrence.count ? `;COUNT=${recurrence.count}` : ""}${recurrence.until ? `;UNTIL=${recurrence.until.replace(/[-:]/g, "").replace("T", "").substring(0, 15)}Z` : ""}"
+      ${description ? `set description of newEvent to "${escapedDesc}"` : ''}
+      ${location ? `set location of newEvent to "${escapedLoc}"` : ''}
+      set recurrence of newEvent to "FREQ=${recurrence.frequency.toUpperCase()};INTERVAL=${interval}${recurrence.count ? `;COUNT=${recurrence.count}` : ''}${recurrence.until ? `;UNTIL=${recurrence.until.replace(/[-:]/g, '').replace('T', '').substring(0, 15)}Z` : ''}"
       return uid of newEvent
     end tell
   `;
@@ -755,7 +753,7 @@ async function openCalendar(): Promise<{ success: boolean; error?: string }> {
 async function openCalendarOnDate(date: string): Promise<{ success: boolean; error?: string }> {
   const targetDate = parseDate(date);
   if (!targetDate) {
-    return { success: false, error: "Invalid date" };
+    return { success: false, error: 'Invalid date' };
   }
 
   const script = `
@@ -779,172 +777,181 @@ async function openCalendarOnDate(date: string): Promise<{ success: boolean; err
 
 const tools: Tool[] = [
   {
-    name: "calendar_check_permissions",
-    description: "Check if the MCP server has permission to access Apple Calendar.",
+    name: 'calendar_check_permissions',
+    description: 'Check if the MCP server has permission to access Apple Calendar.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {},
       required: [],
     },
   },
   {
-    name: "calendar_get_calendars",
-    description: "Get all calendars with their names and colors.",
+    name: 'calendar_get_calendars',
+    description: 'Get all calendars with their names and colors.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {},
       required: [],
     },
   },
   {
-    name: "calendar_get_events",
-    description: "Get events from calendars within a date range.",
+    name: 'calendar_get_events',
+    description: 'Get events from calendars within a date range.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        calendar: { type: "string", description: "Calendar name to filter by (optional)" },
-        start_date: { type: "string", description: "Start date in ISO 8601 format (default: now)" },
-        end_date: { type: "string", description: "End date in ISO 8601 format (default: 30 days from now)" },
-        limit: { type: "number", description: "Maximum events to return (default: 100)" },
+        calendar: { type: 'string', description: 'Calendar name to filter by (optional)' },
+        start_date: { type: 'string', description: 'Start date in ISO 8601 format (default: now)' },
+        end_date: {
+          type: 'string',
+          description: 'End date in ISO 8601 format (default: 30 days from now)',
+        },
+        limit: { type: 'number', description: 'Maximum events to return (default: 100)' },
       },
       required: [],
     },
   },
   {
-    name: "calendar_create_event",
-    description: "Create a new calendar event.",
+    name: 'calendar_create_event',
+    description: 'Create a new calendar event.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        summary: { type: "string", description: "Event title" },
-        start_date: { type: "string", description: "Start date/time in ISO 8601 format" },
-        end_date: { type: "string", description: "End date/time (default: 1 hour after start)" },
-        all_day: { type: "boolean", description: "Is this an all-day event? (default: false)" },
-        calendar: { type: "string", description: "Calendar to add event to (default: first calendar)" },
-        description: { type: "string", description: "Event description/notes" },
-        location: { type: "string", description: "Event location" },
-        url: { type: "string", description: "URL associated with the event" },
+        summary: { type: 'string', description: 'Event title' },
+        start_date: { type: 'string', description: 'Start date/time in ISO 8601 format' },
+        end_date: { type: 'string', description: 'End date/time (default: 1 hour after start)' },
+        all_day: { type: 'boolean', description: 'Is this an all-day event? (default: false)' },
+        calendar: {
+          type: 'string',
+          description: 'Calendar to add event to (default: first calendar)',
+        },
+        description: { type: 'string', description: 'Event description/notes' },
+        location: { type: 'string', description: 'Event location' },
+        url: { type: 'string', description: 'URL associated with the event' },
       },
-      required: ["summary", "start_date"],
+      required: ['summary', 'start_date'],
     },
   },
   {
-    name: "calendar_update_event",
-    description: "Update an existing calendar event.",
+    name: 'calendar_update_event',
+    description: 'Update an existing calendar event.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        event_id: { type: "string", description: "Event ID to update" },
-        calendar: { type: "string", description: "Calendar containing the event" },
-        summary: { type: "string", description: "New event title" },
-        start_date: { type: "string", description: "New start date/time" },
-        end_date: { type: "string", description: "New end date/time" },
-        description: { type: "string", description: "New description" },
-        location: { type: "string", description: "New location" },
-        all_day: { type: "boolean", description: "Change all-day status" },
+        event_id: { type: 'string', description: 'Event ID to update' },
+        calendar: { type: 'string', description: 'Calendar containing the event' },
+        summary: { type: 'string', description: 'New event title' },
+        start_date: { type: 'string', description: 'New start date/time' },
+        end_date: { type: 'string', description: 'New end date/time' },
+        description: { type: 'string', description: 'New description' },
+        location: { type: 'string', description: 'New location' },
+        all_day: { type: 'boolean', description: 'Change all-day status' },
       },
-      required: ["event_id", "calendar"],
+      required: ['event_id', 'calendar'],
     },
   },
   {
-    name: "calendar_delete_event",
-    description: "Delete a calendar event.",
+    name: 'calendar_delete_event',
+    description: 'Delete a calendar event.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        event_id: { type: "string", description: "Event ID to delete" },
-        calendar: { type: "string", description: "Calendar containing the event" },
+        event_id: { type: 'string', description: 'Event ID to delete' },
+        calendar: { type: 'string', description: 'Calendar containing the event' },
       },
-      required: ["event_id", "calendar"],
+      required: ['event_id', 'calendar'],
     },
   },
   {
-    name: "calendar_search",
-    description: "Search for events by text in title, description, or location.",
+    name: 'calendar_search',
+    description: 'Search for events by text in title, description, or location.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        query: { type: "string", description: "Text to search for" },
-        calendar: { type: "string", description: "Limit search to specific calendar (optional)" },
-        limit: { type: "number", description: "Maximum results (default: 50)" },
+        query: { type: 'string', description: 'Text to search for' },
+        calendar: { type: 'string', description: 'Limit search to specific calendar (optional)' },
+        limit: { type: 'number', description: 'Maximum results (default: 50)' },
       },
-      required: ["query"],
+      required: ['query'],
     },
   },
   {
-    name: "calendar_get_today",
-    description: "Get all events scheduled for today.",
+    name: 'calendar_get_today',
+    description: 'Get all events scheduled for today.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {},
       required: [],
     },
   },
   {
-    name: "calendar_get_upcoming",
-    description: "Get upcoming events within the next N days.",
+    name: 'calendar_get_upcoming',
+    description: 'Get upcoming events within the next N days.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        days: { type: "number", description: "Number of days to look ahead (default: 7)" },
+        days: { type: 'number', description: 'Number of days to look ahead (default: 7)' },
       },
       required: [],
     },
   },
   {
-    name: "calendar_find_free_time",
-    description: "Find available time slots on a given date. Great for scheduling meetings.",
+    name: 'calendar_find_free_time',
+    description: 'Find available time slots on a given date. Great for scheduling meetings.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        date: { type: "string", description: "Date to find free time (ISO 8601)" },
-        duration_minutes: { type: "number", description: "Minimum duration needed in minutes" },
-        start_hour: { type: "number", description: "Start of working hours (default: 9)" },
-        end_hour: { type: "number", description: "End of working hours (default: 17)" },
-        calendar: { type: "string", description: "Specific calendar to check (optional)" },
+        date: { type: 'string', description: 'Date to find free time (ISO 8601)' },
+        duration_minutes: { type: 'number', description: 'Minimum duration needed in minutes' },
+        start_hour: { type: 'number', description: 'Start of working hours (default: 9)' },
+        end_hour: { type: 'number', description: 'End of working hours (default: 17)' },
+        calendar: { type: 'string', description: 'Specific calendar to check (optional)' },
       },
-      required: ["date", "duration_minutes"],
+      required: ['date', 'duration_minutes'],
     },
   },
   {
-    name: "calendar_create_recurring_event",
-    description: "Create a recurring calendar event (daily, weekly, monthly, yearly).",
+    name: 'calendar_create_recurring_event',
+    description: 'Create a recurring calendar event (daily, weekly, monthly, yearly).',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        summary: { type: "string", description: "Event title" },
-        start_date: { type: "string", description: "Start date/time in ISO 8601 format" },
-        end_date: { type: "string", description: "End date/time (default: 1 hour after start)" },
-        all_day: { type: "boolean", description: "Is this an all-day event?" },
-        calendar: { type: "string", description: "Calendar to add event to" },
-        description: { type: "string", description: "Event description" },
-        location: { type: "string", description: "Event location" },
-        frequency: { type: "string", description: "Recurrence: 'daily', 'weekly', 'monthly', or 'yearly'" },
-        interval: { type: "number", description: "Interval between occurrences (default: 1)" },
-        count: { type: "number", description: "Number of occurrences (optional)" },
-        until: { type: "string", description: "End date for recurrence (ISO 8601, optional)" },
+        summary: { type: 'string', description: 'Event title' },
+        start_date: { type: 'string', description: 'Start date/time in ISO 8601 format' },
+        end_date: { type: 'string', description: 'End date/time (default: 1 hour after start)' },
+        all_day: { type: 'boolean', description: 'Is this an all-day event?' },
+        calendar: { type: 'string', description: 'Calendar to add event to' },
+        description: { type: 'string', description: 'Event description' },
+        location: { type: 'string', description: 'Event location' },
+        frequency: {
+          type: 'string',
+          description: "Recurrence: 'daily', 'weekly', 'monthly', or 'yearly'",
+        },
+        interval: { type: 'number', description: 'Interval between occurrences (default: 1)' },
+        count: { type: 'number', description: 'Number of occurrences (optional)' },
+        until: { type: 'string', description: 'End date for recurrence (ISO 8601, optional)' },
       },
-      required: ["summary", "start_date", "frequency"],
+      required: ['summary', 'start_date', 'frequency'],
     },
   },
   {
-    name: "calendar_open",
-    description: "Open the Calendar app.",
+    name: 'calendar_open',
+    description: 'Open the Calendar app.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {},
       required: [],
     },
   },
   {
-    name: "calendar_open_date",
-    description: "Open the Calendar app and navigate to a specific date.",
+    name: 'calendar_open_date',
+    description: 'Open the Calendar app and navigate to a specific date.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        date: { type: "string", description: "Date to view (ISO 8601)" },
+        date: { type: 'string', description: 'Date to view (ISO 8601)' },
       },
-      required: ["date"],
+      required: ['date'],
     },
   },
 ];
@@ -955,17 +962,17 @@ const tools: Tool[] = [
 
 async function handleToolCall(name: string, args: Record<string, any>): Promise<string> {
   switch (name) {
-    case "calendar_check_permissions": {
+    case 'calendar_check_permissions': {
       const status = await checkPermissions();
       return JSON.stringify(status, null, 2);
     }
 
-    case "calendar_get_calendars": {
+    case 'calendar_get_calendars': {
       const calendars = await getCalendars();
       return JSON.stringify(calendars, null, 2);
     }
 
-    case "calendar_get_events": {
+    case 'calendar_get_events': {
       const events = await getEvents({
         calendar: args.calendar,
         startDate: args.start_date,
@@ -975,9 +982,9 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
       return JSON.stringify(events, null, 2);
     }
 
-    case "calendar_create_event": {
+    case 'calendar_create_event': {
       if (!args.summary || !args.start_date) {
-        throw new Error("summary and start_date are required");
+        throw new Error('summary and start_date are required');
       }
       const result = await createEvent({
         summary: args.summary,
@@ -992,9 +999,9 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
       return JSON.stringify(result, null, 2);
     }
 
-    case "calendar_update_event": {
+    case 'calendar_update_event': {
       if (!args.event_id || !args.calendar) {
-        throw new Error("event_id and calendar are required");
+        throw new Error('event_id and calendar are required');
       }
       const result = await updateEvent(args.event_id, args.calendar, {
         summary: args.summary,
@@ -1007,16 +1014,16 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
       return JSON.stringify(result, null, 2);
     }
 
-    case "calendar_delete_event": {
+    case 'calendar_delete_event': {
       if (!args.event_id || !args.calendar) {
-        throw new Error("event_id and calendar are required");
+        throw new Error('event_id and calendar are required');
       }
       const result = await deleteEvent(args.event_id, args.calendar);
       return JSON.stringify(result, null, 2);
     }
 
-    case "calendar_search": {
-      if (!args.query) throw new Error("query is required");
+    case 'calendar_search': {
+      if (!args.query) throw new Error('query is required');
       const events = await searchEvents(args.query, {
         calendar: args.calendar,
         limit: args.limit,
@@ -1024,19 +1031,19 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
       return JSON.stringify(events, null, 2);
     }
 
-    case "calendar_get_today": {
+    case 'calendar_get_today': {
       const events = await getTodayEvents();
       return JSON.stringify(events, null, 2);
     }
 
-    case "calendar_get_upcoming": {
+    case 'calendar_get_upcoming': {
       const events = await getUpcomingEvents(args.days || 7);
       return JSON.stringify(events, null, 2);
     }
 
-    case "calendar_find_free_time": {
+    case 'calendar_find_free_time': {
       if (!args.date || !args.duration_minutes) {
-        throw new Error("date and duration_minutes are required");
+        throw new Error('date and duration_minutes are required');
       }
       const slots = await findAvailableTime({
         date: args.date,
@@ -1048,13 +1055,13 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
       return JSON.stringify(slots, null, 2);
     }
 
-    case "calendar_create_recurring_event": {
+    case 'calendar_create_recurring_event': {
       if (!args.summary || !args.start_date || !args.frequency) {
-        throw new Error("summary, start_date, and frequency are required");
+        throw new Error('summary, start_date, and frequency are required');
       }
-      const validFreqs = ["daily", "weekly", "monthly", "yearly"];
+      const validFreqs = ['daily', 'weekly', 'monthly', 'yearly'];
       if (!validFreqs.includes(args.frequency)) {
-        throw new Error("frequency must be: daily, weekly, monthly, or yearly");
+        throw new Error('frequency must be: daily, weekly, monthly, or yearly');
       }
       const result = await createRecurringEvent({
         summary: args.summary,
@@ -1074,13 +1081,13 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
       return JSON.stringify(result, null, 2);
     }
 
-    case "calendar_open": {
+    case 'calendar_open': {
       const result = await openCalendar();
       return JSON.stringify(result, null, 2);
     }
 
-    case "calendar_open_date": {
-      if (!args.date) throw new Error("date is required");
+    case 'calendar_open_date': {
+      if (!args.date) throw new Error('date is required');
       const result = await openCalendarOnDate(args.date);
       return JSON.stringify(result, null, 2);
     }
@@ -1096,7 +1103,7 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
 
 async function main() {
   const server = new Server(
-    { name: "calendar-mcp", version: "2.0.0" },
+    { name: 'calendar-mcp', version: '2.0.0' },
     { capabilities: { tools: {} } }
   );
 
@@ -1107,10 +1114,10 @@ async function main() {
 
     try {
       const result = await handleToolCall(name, args || {});
-      return { content: [{ type: "text", text: result }] };
+      return { content: [{ type: 'text', text: result }] };
     } catch (error: any) {
       return {
-        content: [{ type: "text", text: `Error: ${error.message}` }],
+        content: [{ type: 'text', text: `Error: ${error.message}` }],
         isError: true,
       };
     }
@@ -1119,10 +1126,10 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  console.error("Calendar MCP server v2.0.0 running on stdio");
+  console.error('Calendar MCP server v2.0.0 running on stdio');
 }
 
 main().catch((error) => {
-  console.error("Fatal error:", error);
+  console.error('Fatal error:', error);
   process.exit(1);
 });
