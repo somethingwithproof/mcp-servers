@@ -45,28 +45,34 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 ## Available Tools
 
 ### Account & Mailbox Management
+
 - `mail_get_accounts` - List all configured mail accounts
 - `mail_get_mailboxes` - List mailboxes for an account
 
 ### Email Retrieval
+
 - `mail_get_unread` - Get unread emails (optionally filtered by account/mailbox)
 - `mail_get_recent` - Get recent emails with configurable limit
 - `mail_get_email` - Get a specific email by ID
 
 ### Search
+
 - `mail_search` - Search emails by sender, subject, content, or date range
 
 ### Compose & Send
+
 - `mail_send` - Send a new email (with optional CC/BCC)
 - `mail_reply` - Reply to an existing email
 
 ### Organization
+
 - `mail_mark_read` - Mark email as read
 - `mail_mark_unread` - Mark email as unread
 - `mail_delete` - Delete an email
 - `mail_move` - Move email to a different mailbox
 
 ### Utilities
+
 - `mail_unread_count` - Get unread email count
 - `mail_open` - Open Apple Mail application
 - `mail_check` - Check for new emails
