@@ -55,17 +55,20 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 ## Example Usage
 
 ### List recordings
+
 ```
 Show me my voice memos
 ```
 
 ### Record
+
 ```
 Start a voice memo recording
 Stop the recording
 ```
 
 ### Playback
+
 ```
 Play my most recent voice memo
 ```
