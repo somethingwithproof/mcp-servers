@@ -47,6 +47,7 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 ## Available Tools
 
 ### Album Management
+
 - **photos_get_albums** - Get all albums with photo counts
 - **photos_get_album_photos** - Get photos in a specific album
 - **photos_create_album** - Create a new album
@@ -54,32 +55,39 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 - **photos_get_smart_albums** - Get smart albums (Favorites, Recents, etc.)
 
 ### Photo Browsing
+
 - **photos_get_recent** - Get recently added photos
 - **photos_get_favorites** - Get favorite photos
 - **photos_get_photo_info** - Get detailed info about a photo
 
 ### Search
+
 - **photos_search** - Search by filename or description
 - **photos_search_by_date** - Search photos in a date range
 
 ### Export & Import
+
 - **photos_export** - Export photos from an album
 - **photos_export_photo** - Export a specific photo by ID
 - **photos_import** - Import photos from a file/directory
 
 ### Favorites
+
 - **photos_set_favorite** - Mark/unmark photo as favorite
 
 ### Library Info
+
 - **photos_get_library_stats** - Get library statistics
 
 ### Application Control
+
 - **photos_open** - Open the Photos app
 - **photos_open_album** - Open a specific album
 
 ## Example Usage
 
 ### Browse your library
+
 ```
 Show me my photo albums
 How many photos do I have?
@@ -87,6 +95,7 @@ Show me my recent photos
 ```
 
 ### Search for photos
+
 ```
 Search for photos with "vacation" in the name
 Find photos from January 2024
@@ -94,12 +103,14 @@ Show me my favorite photos
 ```
 
 ### Export photos
+
 ```
 Export photos from my "Hawaii Trip" album
 Export the 10 most recent photos
 ```
 
 ### Manage albums
+
 ```
 Create an album called "Best of 2024"
 Show me what's in the "Family" album
@@ -108,6 +119,7 @@ Show me what's in the "Family" album
 ## Privacy & Security
 
 This MCP server:
+
 - Requires Photos access permission on macOS
 - Only accesses your local Photos library
 - Does not upload or transmit photos externally
