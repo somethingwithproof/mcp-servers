@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
   Tool,
-} from "@modelcontextprotocol/sdk/types.js";
-import { exec } from "child_process";
-import { promisify } from "util";
+} from '@modelcontextprotocol/sdk/types.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
@@ -25,9 +25,9 @@ async function runAppleScript(script: string): Promise<string> {
     });
     return result.stdout.trim();
   } catch (error: any) {
-    if (error.message?.includes("Not authorized")) {
+    if (error.message?.includes('Not authorized')) {
       throw new Error(
-        "Contacts access denied. Grant permission in System Settings > Privacy & Security > Contacts"
+        'Contacts access denied. Grant permission in System Settings > Privacy & Security > Contacts'
       );
     }
     throw error;
@@ -62,9 +62,9 @@ async function checkPermissions(): Promise<PermissionStatus> {
   try {
     await runAppleScript('tell application "Contacts" to count of people');
     status.contacts = true;
-    status.details.push("Contacts: accessible");
+    status.details.push('Contacts: accessible');
   } catch {
-    status.details.push("Contacts: NOT accessible (grant Contacts permission in System Settings)");
+    status.details.push('Contacts: NOT accessible (grant Contacts permission in System Settings)');
   }
 
   return status;
@@ -85,7 +85,14 @@ interface Contact {
   department?: string;
   phones: { label: string; value: string }[];
   emails: { label: string; value: string }[];
-  addresses: { label: string; street?: string; city?: string; state?: string; zip?: string; country?: string }[];
+  addresses: {
+    label: string;
+    street?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    country?: string;
+  }[];
   birthday?: string;
   note?: string;
   groups: string[];
@@ -101,15 +108,15 @@ interface ContactGroup {
 // Get Contacts
 // ============================================================================
 
-async function getContacts(options: {
-  limit?: number;
-  group?: string;
-} = {}): Promise<Contact[]> {
+async function getContacts(
+  options: {
+    limit?: number;
+    group?: string;
+  } = {}
+): Promise<Contact[]> {
   const { limit = 100, group } = options;
 
-  const groupFilter = group
-    ? `people of group "${group.replace(/"/g, '\\"')}"`
-    : "people";
+  const groupFilter = group ? `people of group "${group.replace(/"/g, '\\"')}"` : 'people';
 
   const script = `
     tell application "Contacts"
@@ -328,7 +335,7 @@ async function getContact(contactId: string): Promise<Contact | null> {
   `;
 
   const result = await runAppleScript(script);
-  if (result === "null") return null;
+  if (result === 'null') return null;
   try {
     return JSON.parse(result);
   } catch {
@@ -340,10 +347,7 @@ async function getContact(contactId: string): Promise<Contact | null> {
 // Search Contacts
 // ============================================================================
 
-async function searchContacts(
-  query: string,
-  options: { limit?: number } = {}
-): Promise<Contact[]> {
+async function searchContacts(query: string, options: { limit?: number } = {}): Promise<Contact[]> {
   const { limit = 50 } = options;
   const escapedQuery = query.toLowerCase().replace(/"/g, '\\"');
 
@@ -503,29 +507,29 @@ async function createContact(data: {
   note?: string;
 }): Promise<{ success: boolean; id?: string; error?: string }> {
   const {
-    firstName = "",
-    lastName = "",
-    company = "",
-    jobTitle = "",
+    firstName = '',
+    lastName = '',
+    company = '',
+    jobTitle = '',
     phones = [],
     emails = [],
-    note = "",
+    note = '',
   } = data;
 
   const escFirst = firstName.replace(/"/g, '\\"');
   const escLast = lastName.replace(/"/g, '\\"');
   const escCompany = company.replace(/"/g, '\\"');
   const escTitle = jobTitle.replace(/"/g, '\\"');
-  const escNote = note.replace(/"/g, '\\"').replace(/\n/g, "\\n");
+  const escNote = note.replace(/"/g, '\\"').replace(/\n/g, '\\n');
 
-  let phoneScript = "";
+  let phoneScript = '';
   for (const phone of phones) {
     const label = phone.label.replace(/"/g, '\\"');
     const value = phone.value.replace(/"/g, '\\"');
     phoneScript += `make new phone at end of phones of newPerson with properties {label:"${label}", value:"${value}"}\n`;
   }
 
-  let emailScript = "";
+  let emailScript = '';
   for (const email of emails) {
     const label = email.label.replace(/"/g, '\\"');
     const value = email.value.replace(/"/g, '\\"');
@@ -567,7 +571,7 @@ async function updateContact(
 ): Promise<{ success: boolean; error?: string }> {
   const { firstName, lastName, company, jobTitle, nickname, note } = updates;
 
-  let updateLines: string[] = [];
+  const updateLines: string[] = [];
 
   if (firstName !== undefined) {
     updateLines.push(`set first name of thePerson to "${firstName.replace(/"/g, '\\"')}"`);
@@ -585,17 +589,19 @@ async function updateContact(
     updateLines.push(`set nickname of thePerson to "${nickname.replace(/"/g, '\\"')}"`);
   }
   if (note !== undefined) {
-    updateLines.push(`set note of thePerson to "${note.replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`);
+    updateLines.push(
+      `set note of thePerson to "${note.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`
+    );
   }
 
   if (updateLines.length === 0) {
-    return { success: false, error: "No updates provided" };
+    return { success: false, error: 'No updates provided' };
   }
 
   const script = `
     tell application "Contacts"
       set thePerson to person id "${contactId.replace(/"/g, '\\"')}"
-      ${updateLines.join("\n      ")}
+      ${updateLines.join('\n      ')}
       save
       return "done"
     end tell
@@ -668,7 +674,9 @@ async function getGroups(): Promise<ContactGroup[]> {
   return runAppleScriptJSON<ContactGroup[]>(script);
 }
 
-async function createGroup(name: string): Promise<{ success: boolean; id?: string; error?: string }> {
+async function createGroup(
+  name: string
+): Promise<{ success: boolean; id?: string; error?: string }> {
   const escapedName = name.replace(/"/g, '\\"');
 
   const script = `
@@ -789,177 +797,177 @@ async function openContact(contactId: string): Promise<{ success: boolean; error
 
 const tools: Tool[] = [
   {
-    name: "contacts_check_permissions",
-    description: "Check if the MCP server has permission to access Apple Contacts.",
-    inputSchema: { type: "object", properties: {}, required: [] },
+    name: 'contacts_check_permissions',
+    description: 'Check if the MCP server has permission to access Apple Contacts.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
   },
   {
-    name: "contacts_get_all",
-    description: "Get all contacts or contacts in a specific group.",
+    name: 'contacts_get_all',
+    description: 'Get all contacts or contacts in a specific group.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        limit: { type: "number", description: "Maximum contacts to return (default: 100)" },
-        group: { type: "string", description: "Filter by group name (optional)" },
+        limit: { type: 'number', description: 'Maximum contacts to return (default: 100)' },
+        group: { type: 'string', description: 'Filter by group name (optional)' },
       },
       required: [],
     },
   },
   {
-    name: "contacts_get_contact",
-    description: "Get a specific contact by ID with full details.",
+    name: 'contacts_get_contact',
+    description: 'Get a specific contact by ID with full details.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        contact_id: { type: "string", description: "The contact ID" },
+        contact_id: { type: 'string', description: 'The contact ID' },
       },
-      required: ["contact_id"],
+      required: ['contact_id'],
     },
   },
   {
-    name: "contacts_search",
-    description: "Search contacts by name, phone, email, or company.",
+    name: 'contacts_search',
+    description: 'Search contacts by name, phone, email, or company.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        query: { type: "string", description: "Search text" },
-        limit: { type: "number", description: "Maximum results (default: 50)" },
+        query: { type: 'string', description: 'Search text' },
+        limit: { type: 'number', description: 'Maximum results (default: 50)' },
       },
-      required: ["query"],
+      required: ['query'],
     },
   },
   {
-    name: "contacts_create",
-    description: "Create a new contact.",
+    name: 'contacts_create',
+    description: 'Create a new contact.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        first_name: { type: "string", description: "First name" },
-        last_name: { type: "string", description: "Last name" },
-        company: { type: "string", description: "Company/organization" },
-        job_title: { type: "string", description: "Job title" },
+        first_name: { type: 'string', description: 'First name' },
+        last_name: { type: 'string', description: 'Last name' },
+        company: { type: 'string', description: 'Company/organization' },
+        job_title: { type: 'string', description: 'Job title' },
         phones: {
-          type: "array",
+          type: 'array',
           items: {
-            type: "object",
+            type: 'object',
             properties: {
-              label: { type: "string", description: "Phone label (home, work, mobile, etc.)" },
-              value: { type: "string", description: "Phone number" },
+              label: { type: 'string', description: 'Phone label (home, work, mobile, etc.)' },
+              value: { type: 'string', description: 'Phone number' },
             },
-            required: ["label", "value"],
+            required: ['label', 'value'],
           },
-          description: "Phone numbers",
+          description: 'Phone numbers',
         },
         emails: {
-          type: "array",
+          type: 'array',
           items: {
-            type: "object",
+            type: 'object',
             properties: {
-              label: { type: "string", description: "Email label (home, work, etc.)" },
-              value: { type: "string", description: "Email address" },
+              label: { type: 'string', description: 'Email label (home, work, etc.)' },
+              value: { type: 'string', description: 'Email address' },
             },
-            required: ["label", "value"],
+            required: ['label', 'value'],
           },
-          description: "Email addresses",
+          description: 'Email addresses',
         },
-        note: { type: "string", description: "Notes" },
+        note: { type: 'string', description: 'Notes' },
       },
       required: [],
     },
   },
   {
-    name: "contacts_update",
+    name: 'contacts_update',
     description: "Update an existing contact's information.",
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        contact_id: { type: "string", description: "The contact ID to update" },
-        first_name: { type: "string", description: "New first name" },
-        last_name: { type: "string", description: "New last name" },
-        company: { type: "string", description: "New company" },
-        job_title: { type: "string", description: "New job title" },
-        nickname: { type: "string", description: "New nickname" },
-        note: { type: "string", description: "New notes" },
+        contact_id: { type: 'string', description: 'The contact ID to update' },
+        first_name: { type: 'string', description: 'New first name' },
+        last_name: { type: 'string', description: 'New last name' },
+        company: { type: 'string', description: 'New company' },
+        job_title: { type: 'string', description: 'New job title' },
+        nickname: { type: 'string', description: 'New nickname' },
+        note: { type: 'string', description: 'New notes' },
       },
-      required: ["contact_id"],
+      required: ['contact_id'],
     },
   },
   {
-    name: "contacts_delete",
-    description: "Delete a contact.",
+    name: 'contacts_delete',
+    description: 'Delete a contact.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        contact_id: { type: "string", description: "The contact ID to delete" },
+        contact_id: { type: 'string', description: 'The contact ID to delete' },
       },
-      required: ["contact_id"],
+      required: ['contact_id'],
     },
   },
   {
-    name: "contacts_get_groups",
-    description: "Get all contact groups.",
-    inputSchema: { type: "object", properties: {}, required: [] },
+    name: 'contacts_get_groups',
+    description: 'Get all contact groups.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
   },
   {
-    name: "contacts_create_group",
-    description: "Create a new contact group.",
+    name: 'contacts_create_group',
+    description: 'Create a new contact group.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        name: { type: "string", description: "Group name" },
+        name: { type: 'string', description: 'Group name' },
       },
-      required: ["name"],
+      required: ['name'],
     },
   },
   {
-    name: "contacts_delete_group",
-    description: "Delete a contact group.",
+    name: 'contacts_delete_group',
+    description: 'Delete a contact group.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        name: { type: "string", description: "Group name to delete" },
+        name: { type: 'string', description: 'Group name to delete' },
       },
-      required: ["name"],
+      required: ['name'],
     },
   },
   {
-    name: "contacts_add_to_group",
-    description: "Add a contact to a group.",
+    name: 'contacts_add_to_group',
+    description: 'Add a contact to a group.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        contact_id: { type: "string", description: "Contact ID" },
-        group: { type: "string", description: "Group name" },
+        contact_id: { type: 'string', description: 'Contact ID' },
+        group: { type: 'string', description: 'Group name' },
       },
-      required: ["contact_id", "group"],
+      required: ['contact_id', 'group'],
     },
   },
   {
-    name: "contacts_remove_from_group",
-    description: "Remove a contact from a group.",
+    name: 'contacts_remove_from_group',
+    description: 'Remove a contact from a group.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        contact_id: { type: "string", description: "Contact ID" },
-        group: { type: "string", description: "Group name" },
+        contact_id: { type: 'string', description: 'Contact ID' },
+        group: { type: 'string', description: 'Group name' },
       },
-      required: ["contact_id", "group"],
+      required: ['contact_id', 'group'],
     },
   },
   {
-    name: "contacts_open",
-    description: "Open the Contacts app.",
-    inputSchema: { type: "object", properties: {}, required: [] },
+    name: 'contacts_open',
+    description: 'Open the Contacts app.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
   },
   {
-    name: "contacts_open_contact",
-    description: "Open a specific contact in the Contacts app.",
+    name: 'contacts_open_contact',
+    description: 'Open a specific contact in the Contacts app.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        contact_id: { type: "string", description: "Contact ID to open" },
+        contact_id: { type: 'string', description: 'Contact ID to open' },
       },
-      required: ["contact_id"],
+      required: ['contact_id'],
     },
   },
 ];
@@ -970,12 +978,12 @@ const tools: Tool[] = [
 
 async function handleToolCall(name: string, args: Record<string, any>): Promise<string> {
   switch (name) {
-    case "contacts_check_permissions": {
+    case 'contacts_check_permissions': {
       const status = await checkPermissions();
       return JSON.stringify(status, null, 2);
     }
 
-    case "contacts_get_all": {
+    case 'contacts_get_all': {
       const contacts = await getContacts({
         limit: args.limit,
         group: args.group,
@@ -983,22 +991,22 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
       return JSON.stringify(contacts, null, 2);
     }
 
-    case "contacts_get_contact": {
-      if (!args.contact_id) throw new Error("contact_id is required");
+    case 'contacts_get_contact': {
+      if (!args.contact_id) throw new Error('contact_id is required');
       const contact = await getContact(args.contact_id);
       if (!contact) {
-        return JSON.stringify({ error: "Contact not found" }, null, 2);
+        return JSON.stringify({ error: 'Contact not found' }, null, 2);
       }
       return JSON.stringify(contact, null, 2);
     }
 
-    case "contacts_search": {
-      if (!args.query) throw new Error("query is required");
+    case 'contacts_search': {
+      if (!args.query) throw new Error('query is required');
       const contacts = await searchContacts(args.query, { limit: args.limit });
       return JSON.stringify(contacts, null, 2);
     }
 
-    case "contacts_create": {
+    case 'contacts_create': {
       const result = await createContact({
         firstName: args.first_name,
         lastName: args.last_name,
@@ -1011,8 +1019,8 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
       return JSON.stringify(result, null, 2);
     }
 
-    case "contacts_update": {
-      if (!args.contact_id) throw new Error("contact_id is required");
+    case 'contacts_update': {
+      if (!args.contact_id) throw new Error('contact_id is required');
       const result = await updateContact(args.contact_id, {
         firstName: args.first_name,
         lastName: args.last_name,
@@ -1024,48 +1032,48 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
       return JSON.stringify(result, null, 2);
     }
 
-    case "contacts_delete": {
-      if (!args.contact_id) throw new Error("contact_id is required");
+    case 'contacts_delete': {
+      if (!args.contact_id) throw new Error('contact_id is required');
       const result = await deleteContact(args.contact_id);
       return JSON.stringify(result, null, 2);
     }
 
-    case "contacts_get_groups": {
+    case 'contacts_get_groups': {
       const groups = await getGroups();
       return JSON.stringify(groups, null, 2);
     }
 
-    case "contacts_create_group": {
-      if (!args.name) throw new Error("name is required");
+    case 'contacts_create_group': {
+      if (!args.name) throw new Error('name is required');
       const result = await createGroup(args.name);
       return JSON.stringify(result, null, 2);
     }
 
-    case "contacts_delete_group": {
-      if (!args.name) throw new Error("name is required");
+    case 'contacts_delete_group': {
+      if (!args.name) throw new Error('name is required');
       const result = await deleteGroup(args.name);
       return JSON.stringify(result, null, 2);
     }
 
-    case "contacts_add_to_group": {
-      if (!args.contact_id || !args.group) throw new Error("contact_id and group are required");
+    case 'contacts_add_to_group': {
+      if (!args.contact_id || !args.group) throw new Error('contact_id and group are required');
       const result = await addToGroup(args.contact_id, args.group);
       return JSON.stringify(result, null, 2);
     }
 
-    case "contacts_remove_from_group": {
-      if (!args.contact_id || !args.group) throw new Error("contact_id and group are required");
+    case 'contacts_remove_from_group': {
+      if (!args.contact_id || !args.group) throw new Error('contact_id and group are required');
       const result = await removeFromGroup(args.contact_id, args.group);
       return JSON.stringify(result, null, 2);
     }
 
-    case "contacts_open": {
+    case 'contacts_open': {
       const result = await openContacts();
       return JSON.stringify(result, null, 2);
     }
 
-    case "contacts_open_contact": {
-      if (!args.contact_id) throw new Error("contact_id is required");
+    case 'contacts_open_contact': {
+      if (!args.contact_id) throw new Error('contact_id is required');
       const result = await openContact(args.contact_id);
       return JSON.stringify(result, null, 2);
     }
@@ -1081,7 +1089,7 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
 
 async function main() {
   const server = new Server(
-    { name: "contacts-mcp", version: "1.0.0" },
+    { name: 'contacts-mcp', version: '1.0.0' },
     { capabilities: { tools: {} } }
   );
 
@@ -1092,10 +1100,10 @@ async function main() {
 
     try {
       const result = await handleToolCall(name, args || {});
-      return { content: [{ type: "text", text: result }] };
+      return { content: [{ type: 'text', text: result }] };
     } catch (error: any) {
       return {
-        content: [{ type: "text", text: `Error: ${error.message}` }],
+        content: [{ type: 'text', text: `Error: ${error.message}` }],
         isError: true,
       };
     }
@@ -1104,10 +1112,10 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  console.error("Contacts MCP server v1.0.0 running on stdio");
+  console.error('Contacts MCP server v1.0.0 running on stdio');
 }
 
 main().catch((error) => {
-  console.error("Fatal error:", error);
+  console.error('Fatal error:', error);
   process.exit(1);
 });
