@@ -76,17 +76,21 @@ For best results, create these Shortcuts in the Shortcuts app:
 ## Available Tools
 
 ### Application Control
+
 - **home_open** - Open the Home app
 - **home_get_status** - Open Home app to view device status
 
 ### Scene Control
+
 - **home_run_scene** - Run a HomeKit scene by name
 
 ### Device Control
+
 - **home_control_device** - Run any Shortcut to control devices
 - **home_list_shortcuts** - List available Home-related Shortcuts
 
 ### Quick Actions
+
 - **home_lights_on** - Turn on lights (optional: specify room)
 - **home_lights_off** - Turn off lights (optional: specify room)
 - **home_set_thermostat** - Set thermostat temperature
@@ -96,23 +100,27 @@ For best results, create these Shortcuts in the Shortcuts app:
 ## Example Usage
 
 ### Control lights
+
 ```
 Turn on the living room lights
 Turn off all the lights
 ```
 
 ### Run scenes
+
 ```
 Run the "Good Morning" scene
 Activate "Movie Time"
 ```
 
 ### Thermostat
+
 ```
 Set the thermostat to 72 degrees
 ```
 
 ### Security
+
 ```
 Lock all the doors
 ```
@@ -126,6 +134,7 @@ Lock all the doors
 ## Privacy & Security
 
 This MCP server:
+
 - Runs Shortcuts locally on your Mac
 - Does not access HomeKit data directly (uses Shortcuts)
 - Does not transmit any home data externally
