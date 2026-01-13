@@ -10,9 +10,11 @@ MCP server for Screen Time on macOS - view app usage and set limits via the Mode
 ## Important Limitations
 
 Screen Time on macOS has very limited API access. This MCP can only:
+
 - Open various Screen Time settings panels
 
 It cannot programmatically:
+
 - Read app usage data
 - Set app limits
 - Enable/disable downtime
