@@ -30,7 +30,7 @@ vi.mock('fs', async () => {
 });
 
 // Helper to promisify mocked exec
-const mockExec = child_process.exec as unknown as ReturnType<typeof vi.fn>;
+const mockExec = child_process.exec as unknown as vi.Mock<(...args: any[]) => any>;
 
 // Helper to setup exec mock responses
 function setupExecMock(
