@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify CLAUDE.md exists
+        run: test -f CLAUDE.md
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Biome lint
+        run: npx biome check .
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
