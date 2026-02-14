@@ -45,3 +45,9 @@ source = ["mcp_ical"]
 [tool.coverage.report]
 fail_under = 50
 show_missing = true
+
+[tool.uv]
+extra-build-dependencies = [
+    "setuptools",
+    "wheel",
+]
