@@ -3,14 +3,14 @@ from datetime import datetime
 from threading import Semaphore
 from typing import Any
 
-from EventKit import (
-    EKAlarm,  # type: ignore
-    EKCalendar,  # type: ignore
-    EKEntityTypeEvent,  # type: ignore
-    EKEvent,  # type: ignore
-    EKEventStore,  # type: ignore
-    EKSpanFutureEvents,  # type: ignore
-    EKSpanThisEvent,  # type: ignore
+from EventKit import (  # type: ignore[import-untyped]
+    EKAlarm,
+    EKCalendar,
+    EKEntityTypeEvent,
+    EKEvent,
+    EKEventStore,
+    EKSpanFutureEvents,
+    EKSpanThisEvent,
 )
 from loguru import logger
 
@@ -29,7 +29,7 @@ logger.add(
 
 
 class CalendarManager:
-    def __init__(self):
+    def __init__(self) -> None:
         self.event_store = EKEventStore.alloc().init()
 
         # Force a fresh permission check
@@ -272,14 +272,14 @@ class CalendarManager:
         Returns:
             list[Any]: A list of EK calendar objects
         """
-        return self.event_store.calendars()
+        return list(self.event_store.calendars())
 
     def _request_access(self) -> bool:
         """Request access to interact with the MacOS calendar"""
         semaphore = Semaphore(0)
         access_granted = False
 
-        def completion(granted: bool, error) -> None:
+        def completion(granted: bool, error: Any) -> None:
             nonlocal access_granted
             access_granted = granted
             semaphore.release()

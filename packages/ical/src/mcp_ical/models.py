@@ -3,11 +3,11 @@ from datetime import datetime
 from enum import IntEnum
 from typing import Annotated, Self
 
-from EventKit import (
-    EKEvent,  # type: ignore[import-untyped]
-    EKRecurrenceDayOfWeek,  # type: ignore[import-untyped]
-    EKRecurrenceEnd,  # type: ignore[import-untyped]
-    EKRecurrenceRule,  # type: ignore[import-untyped]
+from EventKit import (  # type: ignore[import-untyped]
+    EKEvent,
+    EKRecurrenceDayOfWeek,
+    EKRecurrenceEnd,
+    EKRecurrenceRule,
 )
 from pydantic import BaseModel, BeforeValidator, Field, model_validator
 
@@ -29,7 +29,7 @@ class Weekday(IntEnum):
     SATURDAY = 7
 
 
-def convert_datetime(v):
+def convert_datetime(v: object) -> datetime | object:
     if hasattr(v, "timeIntervalSince1970"):
         return datetime.fromtimestamp(v.timeIntervalSince1970())
 

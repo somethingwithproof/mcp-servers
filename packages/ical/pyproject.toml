@@ -7,7 +7,14 @@ requires-python = ">=3.12"
 dependencies = ["loguru>=0.7.3", "mcp[cli]>=1.2.1", "pyobjc>=11.0"]
 
 [dependency-groups]
-dev = ["pytest>=8.3.4", "pytest-mock>=3.14.0", "pytest-random-order>=1.1.1"]
+dev = [
+    "mypy>=1.14.0",
+    "pytest>=8.3.4",
+    "pytest-cov>=6.0.0",
+    "pytest-mock>=3.14.0",
+    "pytest-random-order>=1.1.1",
+    "ruff>=0.9.0",
+]
 
 
 [build-system]
@@ -25,3 +32,16 @@ target-version = "py312"
 
 [project.scripts]
 mcp-ical = "mcp_ical.server:main"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.coverage.run]
+source = ["mcp_ical"]
+
+[tool.coverage.report]
+fail_under = 50
+show_missing = true

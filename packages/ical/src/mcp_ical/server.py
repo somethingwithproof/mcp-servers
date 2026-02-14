@@ -197,7 +197,7 @@ async def update_event(event_id: str, update_event_request: UpdateEventRequest) 
         return f"Error updating event: {str(e)}"
 
 
-def main():
+def main() -> None:
     logger.info("Running mcp-ical server...")
     mcp.run(transport="stdio")
 
