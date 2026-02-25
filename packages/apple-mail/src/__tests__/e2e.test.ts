@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import * as childProcess from 'child_process';
+import { randomUUID } from 'crypto';
+import { escapeAppleScript } from '../index.js';
 
 // Mock child_process.execSync to avoid actual AppleScript execution during tests
 // This is safe because we're only mocking for test purposes, not executing real commands
@@ -48,7 +50,7 @@ function createMockServer(): Server {
 // but uses mocked execSync to avoid actual AppleScript execution
 function runAppleScript(script: string): string {
   try {
-    const tempFile = `/tmp/mail-mcp-${Date.now()}.scpt`;
+    const tempFile = `/tmp/mail-mcp-${randomUUID()}.scpt`;
     childProcess.execSync(`cat > '${tempFile}' << 'APPLESCRIPT_EOF'
 ${script}
 APPLESCRIPT_EOF`);
@@ -1080,6 +1082,29 @@ describe('Apple Mail MCP Server - End-to-End Tests', () => {
 
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toContain('Unknown tool: unknown_tool');
+    });
+  });
+
+  describe('escapeAppleScript', () => {
+    it('passes through plain strings unchanged', () => {
+      expect(escapeAppleScript('hello world')).toBe('hello world');
+    });
+
+    it('escapes double quotes', () => {
+      expect(escapeAppleScript('say "hi"')).toBe('say \\"hi\\"');
+    });
+
+    it('escapes backslashes before quotes', () => {
+      // A backslash followed by a quote must become \\\\" not \\"
+      expect(escapeAppleScript('path\\to\\"file')).toBe('path\\\\to\\\\\\"file');
+    });
+
+    it('escapes lone backslashes', () => {
+      expect(escapeAppleScript('C:\\Users\\test')).toBe('C:\\\\Users\\\\test');
+    });
+
+    it('handles empty string', () => {
+      expect(escapeAppleScript('')).toBe('');
     });
   });
 });

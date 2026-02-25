@@ -4,6 +4,13 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { execSync } from 'child_process';
+import { randomUUID } from 'crypto';
+
+// Escape a string for safe interpolation inside an AppleScript double-quoted string.
+// Backslashes must be escaped before quotes to avoid double-processing.
+export function escapeAppleScript(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
 
 const server = new Server(
   {
@@ -22,7 +29,7 @@ const server = new Server(
 // Scripts are written to temp files to avoid shell escaping issues
 function runAppleScript(script: string): string {
   try {
-    const tempFile = `/tmp/mail-mcp-${Date.now()}.scpt`;
+    const tempFile = `/tmp/mail-mcp-${randomUUID()}.scpt`;
     execSync(`cat > '${tempFile}' << 'APPLESCRIPT_EOF'
 ${script}
 APPLESCRIPT_EOF`);
@@ -228,11 +235,12 @@ end tell`;
 
       case 'mail_get_mailboxes': {
         const account = (args as { account?: string }).account;
+        const safeAccount = account ? escapeAppleScript(account) : '';
         const script = account
           ? `
 tell application "Mail"
   try
-    set acct to account "${account}"
+    set acct to account "${safeAccount}"
     set mbList to ""
     repeat with mb in mailboxes of acct
       set unreadCount to unread count of mb
@@ -241,7 +249,7 @@ tell application "Mail"
     if mbList is "" then return "No mailboxes found"
     return mbList
   on error
-    return "Account not found: ${account}"
+    return "Account not found: ${safeAccount}"
   end try
 end tell`
           : `
@@ -266,14 +274,16 @@ end tell`;
           mailbox = 'INBOX',
           limit = 20,
         } = args as { account?: string; mailbox?: string; limit?: number };
+        const safeAccount = account ? escapeAppleScript(account) : '';
+        const safeMailbox = escapeAppleScript(mailbox);
         const script = `
 tell application "Mail"
   set emailList to ""
   set emailCount to 0
   repeat with acct in accounts
-    ${account ? `if name of acct is "${account}" then` : ''}
+    ${account ? `if name of acct is "${safeAccount}" then` : ''}
     try
-      set mb to mailbox "${mailbox}" of acct
+      set mb to mailbox "${safeMailbox}" of acct
       repeat with msg in (messages of mb whose read status is false)
         if emailCount < ${limit} then
           set msgId to id of msg
@@ -304,14 +314,16 @@ end tell`;
           mailbox = 'INBOX',
           limit = 20,
         } = args as { account?: string; mailbox?: string; limit?: number };
+        const safeAccount = account ? escapeAppleScript(account) : '';
+        const safeMailbox = escapeAppleScript(mailbox);
         const script = `
 tell application "Mail"
   set emailList to ""
   set emailCount to 0
   repeat with acct in accounts
-    ${account ? `if name of acct is "${account}" then` : ''}
+    ${account ? `if name of acct is "${safeAccount}" then` : ''}
     try
-      set mb to mailbox "${mailbox}" of acct
+      set mb to mailbox "${safeMailbox}" of acct
       repeat with msg in messages of mb
         if emailCount < ${limit} then
           set msgId to id of msg
@@ -363,6 +375,7 @@ end tell`;
 
       case 'mail_search': {
         const { query, limit = 20 } = args as { query: string; limit?: number };
+        const safeQuery = escapeAppleScript(query);
         const script = `
 tell application "Mail"
   set results to ""
@@ -374,10 +387,10 @@ tell application "Mail"
           if resultCount < ${limit} then
             set matched to false
             try
-              if (subject of msg as text) contains "${query}" then set matched to true
+              if (subject of msg as text) contains "${safeQuery}" then set matched to true
             end try
             try
-              if (sender of msg as text) contains "${query}" then set matched to true
+              if (sender of msg as text) contains "${safeQuery}" then set matched to true
             end try
             if matched then
               set msgId to id of msg
@@ -396,7 +409,7 @@ tell application "Mail"
       end try
     end repeat
   end repeat
-  if results is "" then return "No emails found matching: ${query}"
+  if results is "" then return "No emails found matching: ${safeQuery}"
   return results
 end tell`;
         const result = runAppleScript(script);
@@ -411,16 +424,21 @@ end tell`;
           cc?: string;
           bcc?: string;
         };
+        const safeTo = escapeAppleScript(to);
+        const safeSubject = escapeAppleScript(subject);
+        const safeBody = escapeAppleScript(body);
+        const safeCc = cc ? escapeAppleScript(cc) : '';
+        const safeBcc = bcc ? escapeAppleScript(bcc) : '';
         const script = `
 tell application "Mail"
-  set newMessage to make new outgoing message with properties {subject:"${subject}", content:"${body}", visible:true}
+  set newMessage to make new outgoing message with properties {subject:"${safeSubject}", content:"${safeBody}", visible:true}
   tell newMessage
-    make new to recipient at end of to recipients with properties {address:"${to}"}
-    ${cc ? `make new cc recipient at end of cc recipients with properties {address:"${cc}"}` : ''}
-    ${bcc ? `make new bcc recipient at end of bcc recipients with properties {address:"${bcc}"}` : ''}
+    make new to recipient at end of to recipients with properties {address:"${safeTo}"}
+    ${cc ? `make new cc recipient at end of cc recipients with properties {address:"${safeCc}"}` : ''}
+    ${bcc ? `make new bcc recipient at end of bcc recipients with properties {address:"${safeBcc}"}` : ''}
   end tell
   send newMessage
-  return "Email sent to ${to}"
+  return "Email sent to ${safeTo}"
 end tell`;
         const result = runAppleScript(script);
         return { content: [{ type: 'text', text: result }] };
@@ -432,6 +450,7 @@ end tell`;
           body,
           replyAll = false,
         } = args as { emailId: string; body: string; replyAll?: boolean };
+        const safeBody = escapeAppleScript(body);
         const script = `
 tell application "Mail"
   repeat with acct in accounts
@@ -439,7 +458,7 @@ tell application "Mail"
       try
         set msg to first message of mb whose id is ${emailId}
         set replyMsg to reply msg with opening window${replyAll ? ' and reply to all' : ''}
-        set content of replyMsg to "${body}" & return & return & content of replyMsg
+        set content of replyMsg to "${safeBody}" & return & return & content of replyMsg
         send replyMsg
         return "Reply sent"
       end try
@@ -458,13 +477,15 @@ end tell`;
           account?: string;
         };
         if (emailId === 'all' && mailbox && account) {
+          const safeAccount = escapeAppleScript(account);
+          const safeMailbox = escapeAppleScript(mailbox);
           const script = `
 tell application "Mail"
   try
-    set acct to account "${account}"
-    set mb to mailbox "${mailbox}" of acct
+    set acct to account "${safeAccount}"
+    set mb to mailbox "${safeMailbox}" of acct
     set read status of (messages of mb whose read status is false) to true
-    return "Marked all emails as read in ${mailbox}"
+    return "Marked all emails as read in ${safeMailbox}"
   on error errMsg
     return "Error: " & errMsg
   end try
@@ -534,24 +555,26 @@ end tell`;
           toMailbox: string;
           toAccount?: string;
         };
+        const safeToMailbox = escapeAppleScript(toMailbox);
+        const safeToAccount = toAccount ? escapeAppleScript(toAccount) : '';
         const script = `
 tell application "Mail"
   set destMb to missing value
   repeat with acct in accounts
-    ${toAccount ? `if name of acct is "${toAccount}" then` : ''}
+    ${toAccount ? `if name of acct is "${safeToAccount}" then` : ''}
     try
-      set destMb to mailbox "${toMailbox}" of acct
+      set destMb to mailbox "${safeToMailbox}" of acct
       ${toAccount ? '' : 'exit repeat'}
     end try
     ${toAccount ? 'end if' : ''}
   end repeat
-  if destMb is missing value then return "Mailbox not found: ${toMailbox}"
+  if destMb is missing value then return "Mailbox not found: ${safeToMailbox}"
   repeat with acct in accounts
     repeat with mb in mailboxes of acct
       try
         set msg to first message of mb whose id is ${emailId}
         move msg to destMb
-        return "Email moved to ${toMailbox}"
+        return "Email moved to ${safeToMailbox}"
       end try
     end repeat
   end repeat
@@ -563,12 +586,13 @@ end tell`;
 
       case 'mail_unread_count': {
         const account = (args as { account?: string }).account;
+        const safeAccount = account ? escapeAppleScript(account) : '';
         const script = `
 tell application "Mail"
   set countList to ""
   set grandTotal to 0
   repeat with acct in accounts
-    ${account ? `if name of acct is "${account}" then` : ''}
+    ${account ? `if name of acct is "${safeAccount}" then` : ''}
     set acctTotal to 0
     set acctList to ""
     repeat with mb in mailboxes of acct
