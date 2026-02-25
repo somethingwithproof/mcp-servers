@@ -513,7 +513,7 @@ describe('Calendar MCP Server', () => {
   describe('Error Handling', () => {
     describe('Invalid Inputs', () => {
       it('should handle missing required parameters for create_event', () => {
-        const validateCreateEvent = (args: { summary?: string; start_date?: string }) => {
+        const validateCreateEvent = (args: { summary?: string; start_date?: string }): boolean => {
           if (!args.summary || !args.start_date) {
             throw new Error('summary and start_date are required');
           }
@@ -530,7 +530,7 @@ describe('Calendar MCP Server', () => {
       });
 
       it('should handle missing required parameters for update_event', () => {
-        const validateUpdateEvent = (args: { event_id?: string; calendar?: string }) => {
+        const validateUpdateEvent = (args: { event_id?: string; calendar?: string }): boolean => {
           if (!args.event_id || !args.calendar) {
             throw new Error('event_id and calendar are required');
           }
@@ -544,7 +544,7 @@ describe('Calendar MCP Server', () => {
       });
 
       it('should handle missing required parameters for delete_event', () => {
-        const validateDeleteEvent = (args: { event_id?: string; calendar?: string }) => {
+        const validateDeleteEvent = (args: { event_id?: string; calendar?: string }): boolean => {
           if (!args.event_id || !args.calendar) {
             throw new Error('event_id and calendar are required');
           }
@@ -555,7 +555,7 @@ describe('Calendar MCP Server', () => {
       });
 
       it('should handle missing query for search', () => {
-        const validateSearch = (args: { query?: string }) => {
+        const validateSearch = (args: { query?: string }): boolean => {
           if (!args.query) {
             throw new Error('query is required');
           }
@@ -566,7 +566,10 @@ describe('Calendar MCP Server', () => {
       });
 
       it('should handle missing parameters for find_free_time', () => {
-        const validateFindFreeTime = (args: { date?: string; duration_minutes?: number }) => {
+        const validateFindFreeTime = (args: {
+          date?: string;
+          duration_minutes?: number;
+        }): boolean => {
           if (!args.date || !args.duration_minutes) {
             throw new Error('date and duration_minutes are required');
           }
@@ -584,7 +587,7 @@ describe('Calendar MCP Server', () => {
           summary?: string;
           start_date?: string;
           frequency?: string;
-        }) => {
+        }): boolean => {
           if (!args.summary || !args.start_date || !args.frequency) {
             throw new Error('summary, start_date, and frequency are required');
           }
@@ -597,7 +600,7 @@ describe('Calendar MCP Server', () => {
       });
 
       it('should handle invalid frequency for recurring events', () => {
-        const validateFrequency = (frequency: string) => {
+        const validateFrequency = (frequency: string): boolean => {
           const validFreqs = ['daily', 'weekly', 'monthly', 'yearly'];
           if (!validFreqs.includes(frequency)) {
             throw new Error('frequency must be: daily, weekly, monthly, or yearly');
@@ -614,7 +617,7 @@ describe('Calendar MCP Server', () => {
       });
 
       it('should handle missing date for open_date', () => {
-        const validateOpenDate = (args: { date?: string }) => {
+        const validateOpenDate = (args: { date?: string }): boolean => {
           if (!args.date) {
             throw new Error('date is required');
           }
@@ -651,7 +654,7 @@ describe('Calendar MCP Server', () => {
 
     describe('Unknown Tool Handling', () => {
       it('should throw error for unknown tools', () => {
-        const handleToolCall = (name: string) => {
+        const handleToolCall = (name: string): boolean => {
           const knownTools = new Set(EXPECTED_TOOLS);
           if (!knownTools.has(name as (typeof EXPECTED_TOOLS)[number])) {
             throw new Error(`Unknown tool: ${name}`);
@@ -666,7 +669,7 @@ describe('Calendar MCP Server', () => {
 
     describe('Permission Errors', () => {
       it('should handle calendar permission denied', () => {
-        const checkPermission = (hasAccess: boolean) => {
+        const checkPermission = (hasAccess: boolean): boolean => {
           if (!hasAccess) {
             throw new Error(
               'Calendar access denied. Grant permission in System Settings > Privacy & Security > Calendars'

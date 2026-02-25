@@ -7,30 +7,42 @@ import {
   ListToolsRequestSchema,
   Tool,
 } from '@modelcontextprotocol/sdk/types.js';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
+import { writeFileSync, unlinkSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // ============================================================================
 // AppleScript Helpers
 // ============================================================================
 
 async function runAppleScript(script: string): Promise<string> {
+  // Write the script to a temp file so no shell quoting or injection is possible.
+  const tmp = join(tmpdir(), `calendar-mcp-${process.pid}-${Date.now()}.applescript`);
+  writeFileSync(tmp, script, { encoding: 'utf8', mode: 0o600 });
   try {
-    const escaped = script.replace(/'/g, "'\\''");
-    const result = await execAsync(`osascript -e '${escaped}'`, {
+    const result = await execFileAsync('osascript', [tmp], {
       maxBuffer: 10 * 1024 * 1024,
       timeout: 30000,
     });
     return result.stdout.trim();
-  } catch (error: any) {
-    if (error.message?.includes('Not authorized')) {
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('Not authorized')) {
       throw new Error(
         'Calendar access denied. Grant permission in System Settings > Privacy & Security > Calendars'
       );
     }
-    throw error;
+    throw err;
+  } finally {
+    try {
+      unlinkSync(tmp);
+    } catch {
+      /* best-effort cleanup */
+    }
   }
 }
 
@@ -328,8 +340,8 @@ async function createEvent(options: {
   try {
     const id = await runAppleScript(script);
     return { success: true, id };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -390,8 +402,8 @@ async function updateEvent(
   try {
     await runAppleScript(script);
     return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -411,8 +423,8 @@ async function deleteEvent(
   try {
     await runAppleScript(script);
     return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -726,8 +738,8 @@ async function createRecurringEvent(options: {
   try {
     const id = await runAppleScript(script);
     return { success: true, id };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -745,8 +757,8 @@ async function openCalendar(): Promise<{ success: boolean; error?: string }> {
   try {
     await runAppleScript(script);
     return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -766,8 +778,8 @@ async function openCalendarOnDate(date: string): Promise<{ success: boolean; err
   try {
     await runAppleScript(script);
     return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -960,7 +972,9 @@ const tools: Tool[] = [
 // Tool Handler
 // ============================================================================
 
-async function handleToolCall(name: string, args: Record<string, any>): Promise<string> {
+async function handleToolCall(name: string, args: Record<string, unknown>): Promise<string> {
+  // MCP tool args arrive as JSON-decoded values; cast once at the boundary.
+  const a = args as Record<string, string | number | boolean | undefined>;
   switch (name) {
     case 'calendar_check_permissions': {
       const status = await checkPermissions();
@@ -974,59 +988,59 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
 
     case 'calendar_get_events': {
       const events = await getEvents({
-        calendar: args.calendar,
-        startDate: args.start_date,
-        endDate: args.end_date,
-        limit: args.limit,
+        calendar: a.calendar as string | undefined,
+        startDate: a.start_date as string | undefined,
+        endDate: a.end_date as string | undefined,
+        limit: a.limit as number | undefined,
       });
       return JSON.stringify(events, null, 2);
     }
 
     case 'calendar_create_event': {
-      if (!args.summary || !args.start_date) {
+      if (!a.summary || !a.start_date) {
         throw new Error('summary and start_date are required');
       }
       const result = await createEvent({
-        summary: args.summary,
-        startDate: args.start_date,
-        endDate: args.end_date,
-        allDay: args.all_day,
-        calendar: args.calendar,
-        description: args.description,
-        location: args.location,
-        url: args.url,
+        summary: a.summary as string,
+        startDate: a.start_date as string,
+        endDate: a.end_date as string | undefined,
+        allDay: a.all_day as boolean | undefined,
+        calendar: a.calendar as string | undefined,
+        description: a.description as string | undefined,
+        location: a.location as string | undefined,
+        url: a.url as string | undefined,
       });
       return JSON.stringify(result, null, 2);
     }
 
     case 'calendar_update_event': {
-      if (!args.event_id || !args.calendar) {
+      if (!a.event_id || !a.calendar) {
         throw new Error('event_id and calendar are required');
       }
-      const result = await updateEvent(args.event_id, args.calendar, {
-        summary: args.summary,
-        startDate: args.start_date,
-        endDate: args.end_date,
-        description: args.description,
-        location: args.location,
-        allDay: args.all_day,
+      const result = await updateEvent(a.event_id as string, a.calendar as string, {
+        summary: a.summary as string | undefined,
+        startDate: a.start_date as string | undefined,
+        endDate: a.end_date as string | undefined,
+        description: a.description as string | undefined,
+        location: a.location as string | undefined,
+        allDay: a.all_day as boolean | undefined,
       });
       return JSON.stringify(result, null, 2);
     }
 
     case 'calendar_delete_event': {
-      if (!args.event_id || !args.calendar) {
+      if (!a.event_id || !a.calendar) {
         throw new Error('event_id and calendar are required');
       }
-      const result = await deleteEvent(args.event_id, args.calendar);
+      const result = await deleteEvent(a.event_id as string, a.calendar as string);
       return JSON.stringify(result, null, 2);
     }
 
     case 'calendar_search': {
-      if (!args.query) throw new Error('query is required');
-      const events = await searchEvents(args.query, {
-        calendar: args.calendar,
-        limit: args.limit,
+      if (!a.query) throw new Error('query is required');
+      const events = await searchEvents(a.query as string, {
+        calendar: a.calendar as string | undefined,
+        limit: a.limit as number | undefined,
       });
       return JSON.stringify(events, null, 2);
     }
@@ -1037,45 +1051,45 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
     }
 
     case 'calendar_get_upcoming': {
-      const events = await getUpcomingEvents(args.days || 7);
+      const events = await getUpcomingEvents((a.days as number | undefined) ?? 7);
       return JSON.stringify(events, null, 2);
     }
 
     case 'calendar_find_free_time': {
-      if (!args.date || !args.duration_minutes) {
+      if (!a.date || !a.duration_minutes) {
         throw new Error('date and duration_minutes are required');
       }
       const slots = await findAvailableTime({
-        date: args.date,
-        durationMinutes: args.duration_minutes,
-        startHour: args.start_hour,
-        endHour: args.end_hour,
-        calendar: args.calendar,
+        date: a.date as string,
+        durationMinutes: a.duration_minutes as number,
+        startHour: a.start_hour as number | undefined,
+        endHour: a.end_hour as number | undefined,
+        calendar: a.calendar as string | undefined,
       });
       return JSON.stringify(slots, null, 2);
     }
 
     case 'calendar_create_recurring_event': {
-      if (!args.summary || !args.start_date || !args.frequency) {
+      if (!a.summary || !a.start_date || !a.frequency) {
         throw new Error('summary, start_date, and frequency are required');
       }
       const validFreqs = ['daily', 'weekly', 'monthly', 'yearly'];
-      if (!validFreqs.includes(args.frequency)) {
+      if (!validFreqs.includes(a.frequency as string)) {
         throw new Error('frequency must be: daily, weekly, monthly, or yearly');
       }
       const result = await createRecurringEvent({
-        summary: args.summary,
-        startDate: args.start_date,
-        endDate: args.end_date,
-        allDay: args.all_day,
-        calendar: args.calendar,
-        description: args.description,
-        location: args.location,
+        summary: a.summary as string,
+        startDate: a.start_date as string,
+        endDate: a.end_date as string | undefined,
+        allDay: a.all_day as boolean | undefined,
+        calendar: a.calendar as string | undefined,
+        description: a.description as string | undefined,
+        location: a.location as string | undefined,
         recurrence: {
-          frequency: args.frequency as RecurrenceFrequency,
-          interval: args.interval,
-          count: args.count,
-          until: args.until,
+          frequency: a.frequency as RecurrenceFrequency,
+          interval: a.interval as number | undefined,
+          count: a.count as number | undefined,
+          until: a.until as string | undefined,
         },
       });
       return JSON.stringify(result, null, 2);
@@ -1087,8 +1101,8 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
     }
 
     case 'calendar_open_date': {
-      if (!args.date) throw new Error('date is required');
-      const result = await openCalendarOnDate(args.date);
+      if (!a.date) throw new Error('date is required');
+      const result = await openCalendarOnDate(a.date as string);
       return JSON.stringify(result, null, 2);
     }
 
@@ -1101,7 +1115,7 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
 // Server Setup
 // ============================================================================
 
-async function main() {
+async function main(): Promise<void> {
   const server = new Server(
     { name: 'calendar-mcp', version: '2.0.0' },
     { capabilities: { tools: {} } }
@@ -1115,9 +1129,14 @@ async function main() {
     try {
       const result = await handleToolCall(name, args || {});
       return { content: [{ type: 'text', text: result }] };
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
-        content: [{ type: 'text', text: `Error: ${error.message}` }],
+        content: [
+          {
+            type: 'text',
+            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
         isError: true,
       };
     }
