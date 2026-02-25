@@ -1,5 +1,5 @@
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -38,7 +38,7 @@ def cleanup_calendars_after_tests():
 @pytest.fixture
 def test_calendar(calendar_manager):
     """Create an isolated calendar for testing."""
-    calendar_name = f"test_calendar_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
+    calendar_name = f"test_calendar_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S_%f')}"
 
     calendar = calendar_manager._create_calendar(calendar_name)
     if not calendar:
@@ -73,7 +73,7 @@ def cleanup_events(calendar_manager):
 @pytest.fixture
 def test_event_base():
     """Base event data for testing"""
-    start_time = datetime.now().replace(microsecond=0) + timedelta(days=1)
+    start_time = datetime.now(UTC).replace(microsecond=0) + timedelta(days=1)
     end_time = start_time + timedelta(hours=1)
     return {
         "title": "Test Event",

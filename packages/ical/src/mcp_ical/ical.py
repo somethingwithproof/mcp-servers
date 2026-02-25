@@ -1,4 +1,3 @@
-import sys
 from datetime import datetime
 from threading import Semaphore
 from typing import Any
@@ -18,13 +17,6 @@ from .models import (
     CreateEventRequest,
     Event,
     UpdateEventRequest,
-)
-
-logger.remove()
-logger.add(
-    sys.stderr,
-    format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} - {message}",
-    level="DEBUG",
 )
 
 

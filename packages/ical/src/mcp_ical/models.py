@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import IntEnum
 from typing import Annotated, Self
 
@@ -31,13 +31,15 @@ class Weekday(IntEnum):
 
 def convert_datetime(v: object) -> datetime | object:
     if hasattr(v, "timeIntervalSince1970"):
-        return datetime.fromtimestamp(v.timeIntervalSince1970())
+        return datetime.fromtimestamp(v.timeIntervalSince1970(), tz=UTC)
 
     if isinstance(v, str):
-        return datetime.fromisoformat(v)
+        dt = datetime.fromisoformat(v)
+        # Attach UTC if the string had no tzinfo (e.g. "2025-01-01T09:00:00")
+        return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
 
     if isinstance(v, datetime):
-        return v
+        return v if v.tzinfo is not None else v.replace(tzinfo=UTC)
 
     # If we don't recognize the type, let Pydantic handle it
     return v
