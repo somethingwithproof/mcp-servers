@@ -16,6 +16,12 @@ function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
+// Escape a string for safe interpolation inside an AppleScript double-quoted string.
+// Must escape backslashes before quotes to avoid partial escaping.
+function escapeAppleScript(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
 // ============================================================================
 // AppleScript Helpers
 // ============================================================================
@@ -120,7 +126,7 @@ async function getContacts(
 ): Promise<Contact[]> {
   const { limit = 100, group } = options;
 
-  const groupFilter = group ? `people of group "${group.replace(/"/g, '\\"')}"` : 'people';
+  const groupFilter = group ? `people of group "${escapeAppleScript(group)}"` : 'people';
 
   const script = `
     tell application "Contacts"
@@ -247,7 +253,7 @@ async function getContact(contactId: string): Promise<Contact | null> {
   const script = `
     tell application "Contacts"
       try
-        set p to person id "${contactId.replace(/"/g, '\\"')}"
+        set p to person id "${escapeAppleScript(contactId)}"
         set pId to id of p
         set pFirst to first name of p
         if pFirst is missing value then set pFirst to ""
@@ -353,7 +359,8 @@ async function getContact(contactId: string): Promise<Contact | null> {
 
 async function searchContacts(query: string, options: { limit?: number } = {}): Promise<Contact[]> {
   const { limit = 50 } = options;
-  const escapedQuery = query.toLowerCase().replace(/"/g, '\\"');
+  // escapeAppleScript handles both \ and " — toLowerCase is safe (no special chars)
+  const escapedQuery = escapeAppleScript(query.toLowerCase());
 
   const script = `
     tell application "Contacts"
@@ -538,23 +545,23 @@ async function createContact(data: CreateContactData): Promise<MutationResult> {
     note = '',
   } = data;
 
-  const escFirst = firstName.replace(/"/g, '\\"');
-  const escLast = lastName.replace(/"/g, '\\"');
-  const escCompany = company.replace(/"/g, '\\"');
-  const escTitle = jobTitle.replace(/"/g, '\\"');
-  const escNote = note.replace(/"/g, '\\"').replace(/\n/g, '\\n');
+  const escFirst = escapeAppleScript(firstName);
+  const escLast = escapeAppleScript(lastName);
+  const escCompany = escapeAppleScript(company);
+  const escTitle = escapeAppleScript(jobTitle);
+  const escNote = escapeAppleScript(note).replace(/\n/g, '\\n');
 
   let phoneScript = '';
   for (const phone of phones) {
-    const label = phone.label.replace(/"/g, '\\"');
-    const value = phone.value.replace(/"/g, '\\"');
+    const label = escapeAppleScript(phone.label);
+    const value = escapeAppleScript(phone.value);
     phoneScript += `make new phone at end of phones of newPerson with properties {label:"${label}", value:"${value}"}\n`;
   }
 
   let emailScript = '';
   for (const email of emails) {
-    const label = email.label.replace(/"/g, '\\"');
-    const value = email.value.replace(/"/g, '\\"');
+    const label = escapeAppleScript(email.label);
+    const value = escapeAppleScript(email.value);
     emailScript += `make new email at end of emails of newPerson with properties {label:"${label}", value:"${value}"}\n`;
   }
 
@@ -598,24 +605,22 @@ async function updateContact(
   const updateLines: string[] = [];
 
   if (firstName !== undefined) {
-    updateLines.push(`set first name of thePerson to "${firstName.replace(/"/g, '\\"')}"`);
+    updateLines.push(`set first name of thePerson to "${escapeAppleScript(firstName)}"`);
   }
   if (lastName !== undefined) {
-    updateLines.push(`set last name of thePerson to "${lastName.replace(/"/g, '\\"')}"`);
+    updateLines.push(`set last name of thePerson to "${escapeAppleScript(lastName)}"`);
   }
   if (company !== undefined) {
-    updateLines.push(`set organization of thePerson to "${company.replace(/"/g, '\\"')}"`);
+    updateLines.push(`set organization of thePerson to "${escapeAppleScript(company)}"`);
   }
   if (jobTitle !== undefined) {
-    updateLines.push(`set job title of thePerson to "${jobTitle.replace(/"/g, '\\"')}"`);
+    updateLines.push(`set job title of thePerson to "${escapeAppleScript(jobTitle)}"`);
   }
   if (nickname !== undefined) {
-    updateLines.push(`set nickname of thePerson to "${nickname.replace(/"/g, '\\"')}"`);
+    updateLines.push(`set nickname of thePerson to "${escapeAppleScript(nickname)}"`);
   }
   if (note !== undefined) {
-    updateLines.push(
-      `set note of thePerson to "${note.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`
-    );
+    updateLines.push(`set note of thePerson to "${escapeAppleScript(note).replace(/\n/g, '\\n')}"`);
   }
 
   if (updateLines.length === 0) {
@@ -624,7 +629,7 @@ async function updateContact(
 
   const script = `
     tell application "Contacts"
-      set thePerson to person id "${contactId.replace(/"/g, '\\"')}"
+      set thePerson to person id "${escapeAppleScript(contactId)}"
       ${updateLines.join('\n      ')}
       save
       return "done"
@@ -646,7 +651,7 @@ async function updateContact(
 async function deleteContact(contactId: string): Promise<{ success: boolean; error?: string }> {
   const script = `
     tell application "Contacts"
-      delete person id "${contactId.replace(/"/g, '\\"')}"
+      delete person id "${escapeAppleScript(contactId)}"
       save
       return "done"
     end tell
@@ -699,7 +704,7 @@ async function getGroups(): Promise<ContactGroup[]> {
 }
 
 async function createGroup(name: string): Promise<MutationResult> {
-  const escapedName = name.replace(/"/g, '\\"');
+  const escapedName = escapeAppleScript(name);
 
   const script = `
     tell application "Contacts"
@@ -718,7 +723,7 @@ async function createGroup(name: string): Promise<MutationResult> {
 }
 
 async function deleteGroup(groupName: string): Promise<{ success: boolean; error?: string }> {
-  const escapedName = groupName.replace(/"/g, '\\"');
+  const escapedName = escapeAppleScript(groupName);
 
   const script = `
     tell application "Contacts"
@@ -740,11 +745,11 @@ async function addToGroup(
   contactId: string,
   groupName: string
 ): Promise<{ success: boolean; error?: string }> {
-  const escapedGroup = groupName.replace(/"/g, '\\"');
+  const escapedGroup = escapeAppleScript(groupName);
 
   const script = `
     tell application "Contacts"
-      set thePerson to person id "${contactId.replace(/"/g, '\\"')}"
+      set thePerson to person id "${escapeAppleScript(contactId)}"
       set theGroup to group "${escapedGroup}"
       add thePerson to theGroup
       save
@@ -764,11 +769,11 @@ async function removeFromGroup(
   contactId: string,
   groupName: string
 ): Promise<{ success: boolean; error?: string }> {
-  const escapedGroup = groupName.replace(/"/g, '\\"');
+  const escapedGroup = escapeAppleScript(groupName);
 
   const script = `
     tell application "Contacts"
-      set thePerson to person id "${contactId.replace(/"/g, '\\"')}"
+      set thePerson to person id "${escapeAppleScript(contactId)}"
       set theGroup to group "${escapedGroup}"
       remove thePerson from theGroup
       save
@@ -801,7 +806,7 @@ async function openContacts(): Promise<{ success: boolean; error?: string }> {
 async function openContact(contactId: string): Promise<{ success: boolean; error?: string }> {
   const script = `
     tell application "Contacts"
-      set thePerson to person id "${contactId.replace(/"/g, '\\"')}"
+      set thePerson to person id "${escapeAppleScript(contactId)}"
       activate
     end tell
   `;
