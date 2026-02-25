@@ -8,6 +8,31 @@ import { promisify } from "util";
 const execFileAsync = promisify(execFile);
 
 // ============================================================================
+// Injection Escaping
+// ============================================================================
+
+// Escapes backslashes and double-quotes for embedding in an AppleScript string literal.
+function escapeAppleScript(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+// Escapes the five XML predefined entities to prevent plist injection.
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+// Escapes characters that have special meaning inside an mdfind predicate string.
+// Backslash must come first to avoid double-escaping.
+function escapeMdfind(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\*/g, "\\*");
+}
+
+// ============================================================================
 // Path Safety
 // ============================================================================
 
@@ -32,6 +57,18 @@ export function expandPath(filePath: string): string {
     return path.join(os.homedir(), filePath.slice(1));
   }
   return path.resolve(filePath);
+}
+
+// Resolves symlinks so that a symlink pointing into a protected path is caught
+// by isProtectedPath. Falls back to the synchronous-resolved path on error
+// (e.g. file does not yet exist).
+export async function expandPathReal(filePath: string): Promise<string> {
+  const expanded = expandPath(filePath);
+  try {
+    return await fs.realpath(expanded);
+  } catch {
+    return expanded;
+  }
 }
 
 // ============================================================================
@@ -166,7 +203,9 @@ async function spotlightSearch(
 
   // Build mdquery expression — query is embedded in a quoted mdfind argument,
   // not interpolated into a shell string, so no shell injection risk here.
-  let mdQuery = `kMDItemFSName == "*${query}*"wc || kMDItemTextContent == "*${query}*"wc`;
+  // escapeMdfind neutralises predicate metacharacters within the value.
+  const safeQuery = escapeMdfind(query);
+  let mdQuery = `kMDItemFSName == "*${safeQuery}*"wc || kMDItemTextContent == "*${safeQuery}*"wc`;
 
   if (kind) {
     const kindMap: Record<string, string> = {
@@ -310,7 +349,7 @@ async function setFileTags(
 
   try {
     // Build plist in process; write to temp file; convert to binary; set via xattr
-    const plistTags = tags.map((t) => `<string>${t}</string>`).join("");
+    const plistTags = tags.map((t) => `<string>${escapeXml(t)}</string>`).join("");
     const plist = `<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><array>${plistTags}</array></plist>`;
 
     const tempFile = `/tmp/fmcp_settags_${process.pid}_${Date.now()}.plist`;
@@ -354,7 +393,7 @@ async function findFilesByTag(tag: string, limit: number = 50): Promise<Spotligh
   try {
     const result = await execFileAsync(
       "mdfind",
-      [`kMDItemUserTags == "${tag}"`],
+      [`kMDItemUserTags == "${escapeMdfind(tag)}"`],
       { maxBuffer: 10 * 1024 * 1024, timeout: 30000 }
     );
 
@@ -418,7 +457,8 @@ async function openWithApp(
 }
 
 async function moveToTrash(filePath: string): Promise<{ success: boolean; error?: string }> {
-  const resolved = expandPath(filePath);
+  // Use realpath so a symlink pointing into a protected directory is caught.
+  const resolved = await expandPathReal(filePath);
 
   if (isProtectedPath(resolved)) {
     return { success: false, error: "Cannot trash protected system files" };
@@ -427,7 +467,7 @@ async function moveToTrash(filePath: string): Promise<{ success: boolean; error?
   try {
     await execFileAsync("osascript", [
       "-e",
-      `tell application "Finder" to delete POSIX file "${resolved}"`,
+      `tell application "Finder" to delete POSIX file "${escapeAppleScript(resolved)}"`,
     ]);
     return { success: true };
   } catch (error) {
