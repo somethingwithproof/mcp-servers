@@ -9,9 +9,10 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { writeFileSync, unlinkSync } from 'fs';
+import { writeFile, unlink } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { randomUUID } from 'crypto';
 
 const execFileAsync = promisify(execFile);
 
@@ -19,10 +20,15 @@ const execFileAsync = promisify(execFile);
 // AppleScript Helpers
 // ============================================================================
 
+// Must escape backslashes before quotes — order matters.
+function escapeAppleScript(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
 async function runAppleScript(script: string): Promise<string> {
   // Write the script to a temp file so no shell quoting or injection is possible.
-  const tmp = join(tmpdir(), `calendar-mcp-${process.pid}-${Date.now()}.applescript`);
-  writeFileSync(tmp, script, { encoding: 'utf8', mode: 0o600 });
+  const tmp = join(tmpdir(), `calendar-mcp-${randomUUID()}.applescript`);
+  await writeFile(tmp, script, { encoding: 'utf8', mode: 0o600 });
   try {
     const result = await execFileAsync('osascript', [tmp], {
       maxBuffer: 10 * 1024 * 1024,
@@ -39,7 +45,7 @@ async function runAppleScript(script: string): Promise<string> {
     throw err;
   } finally {
     try {
-      unlinkSync(tmp);
+      await unlink(tmp);
     } catch {
       /* best-effort cleanup */
     }
@@ -202,7 +208,7 @@ async function getEvents(
   }
 
   const dateRange = getDateRange(start, end);
-  const _calendarFilter = calendar ? `calendar "${calendar.replace(/"/g, '\\"')}"` : 'calendars';
+  const _calendarFilter = calendar ? `calendar "${escapeAppleScript(calendar)}"` : 'calendars';
 
   const script = `
     tell application "Calendar"
@@ -211,10 +217,10 @@ async function getEvents(
       set endDate to date "${dateRange.end}"
       set matchCount to 0
 
-      if "${calendar}" is "" then
+      if "${calendar ? escapeAppleScript(calendar) : ''}" is "" then
         set targetCals to calendars
       else
-        set targetCals to {calendar "${calendar?.replace(/"/g, '\\"') || ''}"}
+        set targetCals to {calendar "${calendar ? escapeAppleScript(calendar) : ''}"}
       end if
 
       repeat with theCal in targetCals
@@ -318,14 +324,12 @@ async function createEvent(options: {
     return { success: false, error: 'Invalid end date' };
   }
 
-  const escapedSummary = summary.replace(/"/g, '\\"');
-  const escapedDesc = description?.replace(/"/g, '\\"') || '';
-  const escapedLoc = location?.replace(/"/g, '\\"') || '';
-  const escapedUrl = url?.replace(/"/g, '\\"') || '';
+  const escapedSummary = escapeAppleScript(summary);
+  const escapedDesc = description ? escapeAppleScript(description) : '';
+  const escapedLoc = location ? escapeAppleScript(location) : '';
+  const escapedUrl = url ? escapeAppleScript(url) : '';
 
-  const calendarTarget = calendar
-    ? `calendar "${calendar.replace(/"/g, '\\"')}"`
-    : 'first calendar';
+  const calendarTarget = calendar ? `calendar "${escapeAppleScript(calendar)}"` : 'first calendar';
 
   const script = `
     tell application "Calendar"
@@ -362,13 +366,13 @@ async function updateEvent(
   const updateLines: string[] = [];
 
   if (summary !== undefined) {
-    updateLines.push(`set summary of theEvent to "${summary.replace(/"/g, '\\"')}"`);
+    updateLines.push(`set summary of theEvent to "${escapeAppleScript(summary)}"`);
   }
   if (description !== undefined) {
-    updateLines.push(`set description of theEvent to "${description.replace(/"/g, '\\"')}"`);
+    updateLines.push(`set description of theEvent to "${escapeAppleScript(description)}"`);
   }
   if (location !== undefined) {
-    updateLines.push(`set location of theEvent to "${location.replace(/"/g, '\\"')}"`);
+    updateLines.push(`set location of theEvent to "${escapeAppleScript(location)}"`);
   }
   if (startDate) {
     const date = parseDate(startDate);
@@ -392,8 +396,8 @@ async function updateEvent(
 
   const script = `
     tell application "Calendar"
-      set theCal to calendar "${calendarName.replace(/"/g, '\\"')}"
-      set theEvent to (first event of theCal whose uid is "${eventId.replace(/"/g, '\\"')}")
+      set theCal to calendar "${escapeAppleScript(calendarName)}"
+      set theEvent to (first event of theCal whose uid is "${escapeAppleScript(eventId)}")
       ${updateLines.join('\n      ')}
       return "done"
     end tell
@@ -413,8 +417,8 @@ async function deleteEvent(
 ): Promise<{ success: boolean; error?: string }> {
   const script = `
     tell application "Calendar"
-      set theCal to calendar "${calendarName.replace(/"/g, '\\"')}"
-      set theEvent to (first event of theCal whose uid is "${eventId.replace(/"/g, '\\"')}")
+      set theCal to calendar "${escapeAppleScript(calendarName)}"
+      set theEvent to (first event of theCal whose uid is "${escapeAppleScript(eventId)}")
       delete theEvent
       return "done"
     end tell
@@ -437,7 +441,7 @@ async function searchEvents(
   options: { calendar?: string; limit?: number } = {}
 ): Promise<CalendarEvent[]> {
   const { calendar, limit = 50 } = options;
-  const escapedQuery = query.toLowerCase().replace(/"/g, '\\"');
+  const escapedQuery = escapeAppleScript(query.toLowerCase());
 
   // Search in next 365 days
   const start = new Date();
@@ -452,7 +456,7 @@ async function searchEvents(
       set startDate to date "${dateRange.start}"
       set endDate to date "${dateRange.end}"
 
-      ${calendar ? `set targetCals to {calendar "${calendar.replace(/"/g, '\\"')}"}` : 'set targetCals to calendars'}
+      ${calendar ? `set targetCals to {calendar "${escapeAppleScript(calendar)}"}` : 'set targetCals to calendars'}
 
       repeat with theCal in targetCals
         set calEvents to (events of theCal whose start date ≥ startDate and start date ≤ endDate)
@@ -706,13 +710,11 @@ async function createRecurringEvent(options: {
     return { success: false, error: 'Invalid end date' };
   }
 
-  const escapedSummary = summary.replace(/"/g, '\\"');
-  const escapedDesc = description?.replace(/"/g, '\\"') || '';
-  const escapedLoc = location?.replace(/"/g, '\\"') || '';
+  const escapedSummary = escapeAppleScript(summary);
+  const escapedDesc = description ? escapeAppleScript(description) : '';
+  const escapedLoc = location ? escapeAppleScript(location) : '';
 
-  const calendarTarget = calendar
-    ? `calendar "${calendar.replace(/"/g, '\\"')}"`
-    : 'first calendar';
+  const calendarTarget = calendar ? `calendar "${escapeAppleScript(calendar)}"` : 'first calendar';
 
   // Build recurrence string for AppleScript
   const freqMap: Record<RecurrenceFrequency, string> = {
