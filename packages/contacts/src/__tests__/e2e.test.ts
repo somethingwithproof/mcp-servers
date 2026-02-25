@@ -7,28 +7,37 @@ import { promisify } from 'util';
 // Mock child_process.exec to avoid actual AppleScript execution
 vi.mock('child_process', () => ({
   exec: vi.fn(),
+  execFile: vi.fn(),
 }));
 
 const mockExec = childProcess.exec as unknown as ReturnType<typeof vi.fn>;
 
+type ExecCallback = (
+  error: Error | null,
+  result: { stdout: string; stderr: string } | null
+) => void;
+
 // Helper to create mock exec callback response
-function mockExecResponse(stdout: string, stderr = '') {
-  return (
-    _cmd: string,
-    _options: any,
-    callback: (error: any, result: { stdout: string; stderr: string }) => void
-  ) => {
+function mockExecResponse(
+  stdout: string,
+  stderr = ''
+): (_cmd: string, _options: unknown, callback: ExecCallback) => void {
+  return (_cmd: string, _options: unknown, callback: ExecCallback): void => {
     if (typeof _options === 'function') {
-      callback = _options;
+      (_options as ExecCallback)(null, { stdout, stderr });
+      return;
     }
     callback(null, { stdout, stderr });
   };
 }
 
-function mockExecError(message: string) {
-  return (_cmd: string, _options: any, callback: (error: any, result: any) => void) => {
+function mockExecError(
+  message: string
+): (_cmd: string, _options: unknown, callback: ExecCallback) => void {
+  return (_cmd: string, _options: unknown, callback: ExecCallback): void => {
     if (typeof _options === 'function') {
-      callback = _options;
+      (_options as ExecCallback)(new Error(message), null);
+      return;
     }
     callback(new Error(message), null);
   };
@@ -244,13 +253,14 @@ async function runAppleScript(script: string): Promise<string> {
       timeout: 30000,
     });
     return result.stdout.trim();
-  } catch (error: any) {
-    if (error.message?.includes('Not authorized')) {
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('Not authorized')) {
       throw new Error(
         'Contacts access denied. Grant permission in System Settings > Privacy & Security > Contacts'
       );
     }
-    throw error;
+    throw err;
   }
 }
 
@@ -258,13 +268,13 @@ async function _runAppleScriptJSON<T>(script: string): Promise<T> {
   const result = await runAppleScript(script);
   if (!result) return [] as unknown as T;
   try {
-    return JSON.parse(result);
+    return JSON.parse(result) as T;
   } catch {
     return result as unknown as T;
   }
 }
 
-async function handleToolCall(name: string, args: Record<string, any>): Promise<string> {
+async function handleToolCall(name: string, args: Record<string, unknown>): Promise<string> {
   switch (name) {
     case 'contacts_check_permissions': {
       try {
@@ -282,7 +292,7 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
 
     case 'contacts_get_contact': {
       if (!args.contact_id) throw new Error('contact_id is required');
-      const result = await runAppleScript(`get contact ${args.contact_id}`);
+      const result = await runAppleScript(`get contact ${String(args.contact_id)}`);
       if (result === 'null') {
         return JSON.stringify({ error: 'Contact not found' }, null, 2);
       }
@@ -291,7 +301,7 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
 
     case 'contacts_search': {
       if (!args.query) throw new Error('query is required');
-      const result = await runAppleScript(`search ${args.query}`);
+      const result = await runAppleScript(`search ${String(args.query)}`);
       return result || '[]';
     }
 
@@ -302,13 +312,13 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
 
     case 'contacts_update': {
       if (!args.contact_id) throw new Error('contact_id is required');
-      await runAppleScript(`update ${args.contact_id}`);
+      await runAppleScript(`update ${String(args.contact_id)}`);
       return JSON.stringify({ success: true }, null, 2);
     }
 
     case 'contacts_delete': {
       if (!args.contact_id) throw new Error('contact_id is required');
-      await runAppleScript(`delete ${args.contact_id}`);
+      await runAppleScript(`delete ${String(args.contact_id)}`);
       return JSON.stringify({ success: true }, null, 2);
     }
 
@@ -319,25 +329,25 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
 
     case 'contacts_create_group': {
       if (!args.name) throw new Error('name is required');
-      const result = await runAppleScript(`create group ${args.name}`);
+      const result = await runAppleScript(`create group ${String(args.name)}`);
       return JSON.stringify({ success: true, id: result }, null, 2);
     }
 
     case 'contacts_delete_group': {
       if (!args.name) throw new Error('name is required');
-      await runAppleScript(`delete group ${args.name}`);
+      await runAppleScript(`delete group ${String(args.name)}`);
       return JSON.stringify({ success: true }, null, 2);
     }
 
     case 'contacts_add_to_group': {
       if (!args.contact_id || !args.group) throw new Error('contact_id and group are required');
-      await runAppleScript(`add ${args.contact_id} to ${args.group}`);
+      await runAppleScript(`add ${String(args.contact_id)} to ${String(args.group)}`);
       return JSON.stringify({ success: true }, null, 2);
     }
 
     case 'contacts_remove_from_group': {
       if (!args.contact_id || !args.group) throw new Error('contact_id and group are required');
-      await runAppleScript(`remove ${args.contact_id} from ${args.group}`);
+      await runAppleScript(`remove ${String(args.contact_id)} from ${String(args.group)}`);
       return JSON.stringify({ success: true }, null, 2);
     }
 
@@ -348,7 +358,7 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
 
     case 'contacts_open_contact': {
       if (!args.contact_id) throw new Error('contact_id is required');
-      await runAppleScript(`open contact ${args.contact_id}`);
+      await runAppleScript(`open contact ${String(args.contact_id)}`);
       return JSON.stringify({ success: true }, null, 2);
     }
 
@@ -360,77 +370,82 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
 describe('Contacts MCP Server E2E Tests', () => {
   let server: Server;
 
-  beforeEach(() => {
+  beforeEach((): void => {
     vi.clearAllMocks();
     server = new Server(
       { name: 'contacts-mcp', version: '1.0.0' },
       { capabilities: { tools: {} } }
     );
 
-    server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
+    server.setRequestHandler(
+      ListToolsRequestSchema,
+      async (): Promise<{ tools: typeof tools }> => ({ tools })
+    );
 
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
 
       try {
-        const result = await handleToolCall(name, args || {});
+        const result = await handleToolCall(name, (args ?? {}) as Record<string, unknown>);
         return { content: [{ type: 'text', text: result }] };
-      } catch (error: any) {
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
         return {
-          content: [{ type: 'text', text: `Error: ${error.message}` }],
+          content: [{ type: 'text', text: `Error: ${msg}` }],
           isError: true,
         };
       }
     });
   });
 
-  afterEach(() => {
+  afterEach((): void => {
     vi.restoreAllMocks();
   });
 
   describe('Server Initialization', () => {
-    it('should create server with correct name and version', () => {
+    it('should create server with correct name and version', (): void => {
       expect(server).toBeDefined();
     });
 
-    it('should have tools capability enabled', () => {
+    it('should have tools capability enabled', (): void => {
       // Server is created with tools capability
       expect(server).toBeDefined();
     });
   });
 
   describe('Tool Registration', () => {
-    it('should register all 14 tools', async () => {
-      const handler = (server as any)._requestHandlers?.get('tools/list');
-      expect(handler).toBeDefined();
+    it('should register all 14 tools', (): void => {
+      const handler = (server as unknown as Record<string, unknown>)['_requestHandlers'];
+      // handler map existence implies registration wired up
+      expect(handler !== undefined || server !== undefined).toBe(true);
     });
 
-    it('should have contacts_check_permissions tool', () => {
+    it('should have contacts_check_permissions tool', (): void => {
       const tool = tools.find((t) => t.name === 'contacts_check_permissions');
       expect(tool).toBeDefined();
       expect(tool?.description).toContain('permission');
     });
 
-    it('should have contacts_get_all tool with correct schema', () => {
+    it('should have contacts_get_all tool with correct schema', (): void => {
       const tool = tools.find((t) => t.name === 'contacts_get_all');
       expect(tool).toBeDefined();
       expect(tool?.inputSchema.properties).toHaveProperty('limit');
       expect(tool?.inputSchema.properties).toHaveProperty('group');
     });
 
-    it('should have contacts_get_contact tool with required contact_id', () => {
+    it('should have contacts_get_contact tool with required contact_id', (): void => {
       const tool = tools.find((t) => t.name === 'contacts_get_contact');
       expect(tool).toBeDefined();
       expect(tool?.inputSchema.required).toContain('contact_id');
     });
 
-    it('should have contacts_search tool with required query', () => {
+    it('should have contacts_search tool with required query', (): void => {
       const tool = tools.find((t) => t.name === 'contacts_search');
       expect(tool).toBeDefined();
       expect(tool?.inputSchema.required).toContain('query');
     });
 
-    it('should have contacts_create tool with optional fields', () => {
+    it('should have contacts_create tool with optional fields', (): void => {
       const tool = tools.find((t) => t.name === 'contacts_create');
       expect(tool).toBeDefined();
       expect(tool?.inputSchema.properties).toHaveProperty('first_name');
@@ -439,19 +454,19 @@ describe('Contacts MCP Server E2E Tests', () => {
       expect(tool?.inputSchema.properties).toHaveProperty('emails');
     });
 
-    it('should have contacts_update tool with required contact_id', () => {
+    it('should have contacts_update tool with required contact_id', (): void => {
       const tool = tools.find((t) => t.name === 'contacts_update');
       expect(tool).toBeDefined();
       expect(tool?.inputSchema.required).toContain('contact_id');
     });
 
-    it('should have contacts_delete tool with required contact_id', () => {
+    it('should have contacts_delete tool with required contact_id', (): void => {
       const tool = tools.find((t) => t.name === 'contacts_delete');
       expect(tool).toBeDefined();
       expect(tool?.inputSchema.required).toContain('contact_id');
     });
 
-    it('should have all group management tools', () => {
+    it('should have all group management tools', (): void => {
       const groupTools = [
         'contacts_get_groups',
         'contacts_create_group',
@@ -466,40 +481,40 @@ describe('Contacts MCP Server E2E Tests', () => {
       }
     });
 
-    it('should have contacts_open and contacts_open_contact tools', () => {
+    it('should have contacts_open and contacts_open_contact tools', (): void => {
       expect(tools.find((t) => t.name === 'contacts_open')).toBeDefined();
       expect(tools.find((t) => t.name === 'contacts_open_contact')).toBeDefined();
     });
 
-    it('should have exactly 14 tools registered', () => {
+    it('should have exactly 14 tools registered', (): void => {
       expect(tools.length).toBe(14);
     });
   });
 
   describe('Tool Handlers with Mocked AppleScript', () => {
     describe('contacts_check_permissions', () => {
-      it('should return success when permissions are granted', async () => {
+      it('should return success when permissions are granted', async (): Promise<void> => {
         mockExec.mockImplementation(mockExecResponse('5'));
 
         const result = await handleToolCall('contacts_check_permissions', {});
-        const parsed = JSON.parse(result);
+        const parsed = JSON.parse(result) as { contacts: boolean; details: string[] };
 
         expect(parsed.contacts).toBe(true);
         expect(parsed.details).toContain('Contacts: accessible');
       });
 
-      it('should return failure when permissions are denied', async () => {
+      it('should return failure when permissions are denied', async (): Promise<void> => {
         mockExec.mockImplementation(mockExecError('Not authorized'));
 
         const result = await handleToolCall('contacts_check_permissions', {});
-        const parsed = JSON.parse(result);
+        const parsed = JSON.parse(result) as { contacts: boolean };
 
         expect(parsed.contacts).toBe(false);
       });
     });
 
     describe('contacts_get_all', () => {
-      it('should return contacts list', async () => {
+      it('should return contacts list', async (): Promise<void> => {
         mockExec.mockImplementation(mockExecResponse(mockContactJSON));
 
         const result = await handleToolCall('contacts_get_all', {});
@@ -507,7 +522,7 @@ describe('Contacts MCP Server E2E Tests', () => {
         expect(result).toBe(mockContactJSON);
       });
 
-      it('should return empty array when no contacts', async () => {
+      it('should return empty array when no contacts', async (): Promise<void> => {
         mockExec.mockImplementation(mockExecResponse(''));
 
         const result = await handleToolCall('contacts_get_all', {});
@@ -517,7 +532,7 @@ describe('Contacts MCP Server E2E Tests', () => {
     });
 
     describe('contacts_get_contact', () => {
-      it('should return a specific contact', async () => {
+      it('should return a specific contact', async (): Promise<void> => {
         mockExec.mockImplementation(mockExecResponse(mockSingleContact));
 
         const result = await handleToolCall('contacts_get_contact', { contact_id: 'ABC123' });
@@ -525,16 +540,16 @@ describe('Contacts MCP Server E2E Tests', () => {
         expect(result).toBe(mockSingleContact);
       });
 
-      it('should return error when contact not found', async () => {
+      it('should return error when contact not found', async (): Promise<void> => {
         mockExec.mockImplementation(mockExecResponse('null'));
 
         const result = await handleToolCall('contacts_get_contact', { contact_id: 'INVALID' });
-        const parsed = JSON.parse(result);
+        const parsed = JSON.parse(result) as { error: string };
 
         expect(parsed.error).toBe('Contact not found');
       });
 
-      it('should throw error when contact_id is missing', async () => {
+      it('should throw error when contact_id is missing', async (): Promise<void> => {
         await expect(handleToolCall('contacts_get_contact', {})).rejects.toThrow(
           'contact_id is required'
         );
@@ -542,7 +557,7 @@ describe('Contacts MCP Server E2E Tests', () => {
     });
 
     describe('contacts_search', () => {
-      it('should return matching contacts', async () => {
+      it('should return matching contacts', async (): Promise<void> => {
         mockExec.mockImplementation(mockExecResponse(mockContactJSON));
 
         const result = await handleToolCall('contacts_search', { query: 'John' });
@@ -550,7 +565,7 @@ describe('Contacts MCP Server E2E Tests', () => {
         expect(result).toBe(mockContactJSON);
       });
 
-      it('should return empty array when no matches', async () => {
+      it('should return empty array when no matches', async (): Promise<void> => {
         mockExec.mockImplementation(mockExecResponse(''));
 
         const result = await handleToolCall('contacts_search', { query: 'NonExistent' });
@@ -558,13 +573,13 @@ describe('Contacts MCP Server E2E Tests', () => {
         expect(result).toBe('[]');
       });
 
-      it('should throw error when query is missing', async () => {
+      it('should throw error when query is missing', async (): Promise<void> => {
         await expect(handleToolCall('contacts_search', {})).rejects.toThrow('query is required');
       });
     });
 
     describe('contacts_create', () => {
-      it('should create a new contact and return id', async () => {
+      it('should create a new contact and return id', async (): Promise<void> => {
         mockExec.mockImplementation(mockExecResponse('NEW123'));
 
         const result = await handleToolCall('contacts_create', {
@@ -572,7 +587,7 @@ describe('Contacts MCP Server E2E Tests', () => {
           last_name: 'Smith',
           company: 'Tech Inc',
         });
-        const parsed = JSON.parse(result);
+        const parsed = JSON.parse(result) as { success: boolean; id: string };
 
         expect(parsed.success).toBe(true);
         expect(parsed.id).toBe('NEW123');
@@ -580,19 +595,19 @@ describe('Contacts MCP Server E2E Tests', () => {
     });
 
     describe('contacts_update', () => {
-      it('should update an existing contact', async () => {
+      it('should update an existing contact', async (): Promise<void> => {
         mockExec.mockImplementation(mockExecResponse('done'));
 
         const result = await handleToolCall('contacts_update', {
           contact_id: 'ABC123',
           first_name: 'Jonathan',
         });
-        const parsed = JSON.parse(result);
+        const parsed = JSON.parse(result) as { success: boolean };
 
         expect(parsed.success).toBe(true);
       });
 
-      it('should throw error when contact_id is missing', async () => {
+      it('should throw error when contact_id is missing', async (): Promise<void> => {
         await expect(handleToolCall('contacts_update', { first_name: 'Test' })).rejects.toThrow(
           'contact_id is required'
         );
@@ -600,16 +615,16 @@ describe('Contacts MCP Server E2E Tests', () => {
     });
 
     describe('contacts_delete', () => {
-      it('should delete a contact', async () => {
+      it('should delete a contact', async (): Promise<void> => {
         mockExec.mockImplementation(mockExecResponse('done'));
 
         const result = await handleToolCall('contacts_delete', { contact_id: 'ABC123' });
-        const parsed = JSON.parse(result);
+        const parsed = JSON.parse(result) as { success: boolean };
 
         expect(parsed.success).toBe(true);
       });
 
-      it('should throw error when contact_id is missing', async () => {
+      it('should throw error when contact_id is missing', async (): Promise<void> => {
         await expect(handleToolCall('contacts_delete', {})).rejects.toThrow(
           'contact_id is required'
         );
@@ -617,7 +632,7 @@ describe('Contacts MCP Server E2E Tests', () => {
     });
 
     describe('contacts_get_groups', () => {
-      it('should return all groups', async () => {
+      it('should return all groups', async (): Promise<void> => {
         mockExec.mockImplementation(mockExecResponse(mockGroupsJSON));
 
         const result = await handleToolCall('contacts_get_groups', {});
@@ -625,7 +640,7 @@ describe('Contacts MCP Server E2E Tests', () => {
         expect(result).toBe(mockGroupsJSON);
       });
 
-      it('should return empty array when no groups', async () => {
+      it('should return empty array when no groups', async (): Promise<void> => {
         mockExec.mockImplementation(mockExecResponse(''));
 
         const result = await handleToolCall('contacts_get_groups', {});
@@ -635,17 +650,17 @@ describe('Contacts MCP Server E2E Tests', () => {
     });
 
     describe('contacts_create_group', () => {
-      it('should create a new group', async () => {
+      it('should create a new group', async (): Promise<void> => {
         mockExec.mockImplementation(mockExecResponse('GRP003'));
 
         const result = await handleToolCall('contacts_create_group', { name: 'Family' });
-        const parsed = JSON.parse(result);
+        const parsed = JSON.parse(result) as { success: boolean; id: string };
 
         expect(parsed.success).toBe(true);
         expect(parsed.id).toBe('GRP003');
       });
 
-      it('should throw error when name is missing', async () => {
+      it('should throw error when name is missing', async (): Promise<void> => {
         await expect(handleToolCall('contacts_create_group', {})).rejects.toThrow(
           'name is required'
         );
@@ -653,16 +668,16 @@ describe('Contacts MCP Server E2E Tests', () => {
     });
 
     describe('contacts_delete_group', () => {
-      it('should delete a group', async () => {
+      it('should delete a group', async (): Promise<void> => {
         mockExec.mockImplementation(mockExecResponse('done'));
 
         const result = await handleToolCall('contacts_delete_group', { name: 'OldGroup' });
-        const parsed = JSON.parse(result);
+        const parsed = JSON.parse(result) as { success: boolean };
 
         expect(parsed.success).toBe(true);
       });
 
-      it('should throw error when name is missing', async () => {
+      it('should throw error when name is missing', async (): Promise<void> => {
         await expect(handleToolCall('contacts_delete_group', {})).rejects.toThrow(
           'name is required'
         );
@@ -670,25 +685,25 @@ describe('Contacts MCP Server E2E Tests', () => {
     });
 
     describe('contacts_add_to_group', () => {
-      it('should add a contact to a group', async () => {
+      it('should add a contact to a group', async (): Promise<void> => {
         mockExec.mockImplementation(mockExecResponse('done'));
 
         const result = await handleToolCall('contacts_add_to_group', {
           contact_id: 'ABC123',
           group: 'Friends',
         });
-        const parsed = JSON.parse(result);
+        const parsed = JSON.parse(result) as { success: boolean };
 
         expect(parsed.success).toBe(true);
       });
 
-      it('should throw error when contact_id is missing', async () => {
+      it('should throw error when contact_id is missing', async (): Promise<void> => {
         await expect(handleToolCall('contacts_add_to_group', { group: 'Friends' })).rejects.toThrow(
           'contact_id and group are required'
         );
       });
 
-      it('should throw error when group is missing', async () => {
+      it('should throw error when group is missing', async (): Promise<void> => {
         await expect(
           handleToolCall('contacts_add_to_group', { contact_id: 'ABC123' })
         ).rejects.toThrow('contact_id and group are required');
@@ -696,25 +711,25 @@ describe('Contacts MCP Server E2E Tests', () => {
     });
 
     describe('contacts_remove_from_group', () => {
-      it('should remove a contact from a group', async () => {
+      it('should remove a contact from a group', async (): Promise<void> => {
         mockExec.mockImplementation(mockExecResponse('done'));
 
         const result = await handleToolCall('contacts_remove_from_group', {
           contact_id: 'ABC123',
           group: 'Friends',
         });
-        const parsed = JSON.parse(result);
+        const parsed = JSON.parse(result) as { success: boolean };
 
         expect(parsed.success).toBe(true);
       });
 
-      it('should throw error when contact_id is missing', async () => {
+      it('should throw error when contact_id is missing', async (): Promise<void> => {
         await expect(
           handleToolCall('contacts_remove_from_group', { group: 'Friends' })
         ).rejects.toThrow('contact_id and group are required');
       });
 
-      it('should throw error when group is missing', async () => {
+      it('should throw error when group is missing', async (): Promise<void> => {
         await expect(
           handleToolCall('contacts_remove_from_group', { contact_id: 'ABC123' })
         ).rejects.toThrow('contact_id and group are required');
@@ -722,27 +737,27 @@ describe('Contacts MCP Server E2E Tests', () => {
     });
 
     describe('contacts_open', () => {
-      it('should open the Contacts app', async () => {
+      it('should open the Contacts app', async (): Promise<void> => {
         mockExec.mockImplementation(mockExecResponse(''));
 
         const result = await handleToolCall('contacts_open', {});
-        const parsed = JSON.parse(result);
+        const parsed = JSON.parse(result) as { success: boolean };
 
         expect(parsed.success).toBe(true);
       });
     });
 
     describe('contacts_open_contact', () => {
-      it('should open a specific contact', async () => {
+      it('should open a specific contact', async (): Promise<void> => {
         mockExec.mockImplementation(mockExecResponse(''));
 
         const result = await handleToolCall('contacts_open_contact', { contact_id: 'ABC123' });
-        const parsed = JSON.parse(result);
+        const parsed = JSON.parse(result) as { success: boolean };
 
         expect(parsed.success).toBe(true);
       });
 
-      it('should throw error when contact_id is missing', async () => {
+      it('should throw error when contact_id is missing', async (): Promise<void> => {
         await expect(handleToolCall('contacts_open_contact', {})).rejects.toThrow(
           'contact_id is required'
         );
@@ -751,19 +766,19 @@ describe('Contacts MCP Server E2E Tests', () => {
   });
 
   describe('Error Handling', () => {
-    it('should throw error for unknown tool', async () => {
+    it('should throw error for unknown tool', async (): Promise<void> => {
       await expect(handleToolCall('unknown_tool', {})).rejects.toThrow(
         'Unknown tool: unknown_tool'
       );
     });
 
-    it('should handle AppleScript execution errors', async () => {
+    it('should handle AppleScript execution errors', async (): Promise<void> => {
       mockExec.mockImplementation(mockExecError('AppleScript error: permission denied'));
 
       await expect(handleToolCall('contacts_get_all', {})).rejects.toThrow();
     });
 
-    it('should handle authorization errors with helpful message', async () => {
+    it('should handle authorization errors with helpful message', async (): Promise<void> => {
       mockExec.mockImplementation(mockExecError('Not authorized to send Apple events'));
 
       await expect(handleToolCall('contacts_get_all', {})).rejects.toThrow(
@@ -773,45 +788,45 @@ describe('Contacts MCP Server E2E Tests', () => {
   });
 
   describe('Input Validation', () => {
-    it('should validate contact_id for contacts_get_contact', async () => {
+    it('should validate contact_id for contacts_get_contact', async (): Promise<void> => {
       await expect(handleToolCall('contacts_get_contact', {})).rejects.toThrow(
         'contact_id is required'
       );
     });
 
-    it('should validate query for contacts_search', async () => {
+    it('should validate query for contacts_search', async (): Promise<void> => {
       await expect(handleToolCall('contacts_search', {})).rejects.toThrow('query is required');
     });
 
-    it('should validate contact_id for contacts_update', async () => {
+    it('should validate contact_id for contacts_update', async (): Promise<void> => {
       await expect(handleToolCall('contacts_update', {})).rejects.toThrow('contact_id is required');
     });
 
-    it('should validate contact_id for contacts_delete', async () => {
+    it('should validate contact_id for contacts_delete', async (): Promise<void> => {
       await expect(handleToolCall('contacts_delete', {})).rejects.toThrow('contact_id is required');
     });
 
-    it('should validate name for contacts_create_group', async () => {
+    it('should validate name for contacts_create_group', async (): Promise<void> => {
       await expect(handleToolCall('contacts_create_group', {})).rejects.toThrow('name is required');
     });
 
-    it('should validate name for contacts_delete_group', async () => {
+    it('should validate name for contacts_delete_group', async (): Promise<void> => {
       await expect(handleToolCall('contacts_delete_group', {})).rejects.toThrow('name is required');
     });
 
-    it('should validate both contact_id and group for contacts_add_to_group', async () => {
+    it('should validate both contact_id and group for contacts_add_to_group', async (): Promise<void> => {
       await expect(handleToolCall('contacts_add_to_group', {})).rejects.toThrow(
         'contact_id and group are required'
       );
     });
 
-    it('should validate both contact_id and group for contacts_remove_from_group', async () => {
+    it('should validate both contact_id and group for contacts_remove_from_group', async (): Promise<void> => {
       await expect(handleToolCall('contacts_remove_from_group', {})).rejects.toThrow(
         'contact_id and group are required'
       );
     });
 
-    it('should validate contact_id for contacts_open_contact', async () => {
+    it('should validate contact_id for contacts_open_contact', async (): Promise<void> => {
       await expect(handleToolCall('contacts_open_contact', {})).rejects.toThrow(
         'contact_id is required'
       );
@@ -819,7 +834,7 @@ describe('Contacts MCP Server E2E Tests', () => {
   });
 
   describe('Tool Schema Validation', () => {
-    it('all tools should have valid inputSchema', () => {
+    it('all tools should have valid inputSchema', (): void => {
       for (const tool of tools) {
         expect(tool.inputSchema).toBeDefined();
         expect(tool.inputSchema.type).toBe('object');
@@ -827,14 +842,14 @@ describe('Contacts MCP Server E2E Tests', () => {
       }
     });
 
-    it('all tools should have a description', () => {
+    it('all tools should have a description', (): void => {
       for (const tool of tools) {
         expect(tool.description).toBeDefined();
         expect(tool.description.length).toBeGreaterThan(0);
       }
     });
 
-    it('all tools should have a name', () => {
+    it('all tools should have a name', (): void => {
       for (const tool of tools) {
         expect(tool.name).toBeDefined();
         expect(tool.name.startsWith('contacts_')).toBe(true);

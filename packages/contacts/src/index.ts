@@ -7,10 +7,14 @@ import {
   ListToolsRequestSchema,
   Tool,
 } from '@modelcontextprotocol/sdk/types.js';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
 
 // ============================================================================
 // AppleScript Helpers
@@ -18,19 +22,19 @@ const execAsync = promisify(exec);
 
 async function runAppleScript(script: string): Promise<string> {
   try {
-    const escaped = script.replace(/'/g, "'\\''");
-    const result = await execAsync(`osascript -e '${escaped}'`, {
+    const result = await execFileAsync('osascript', ['-e', script], {
       maxBuffer: 50 * 1024 * 1024,
       timeout: 30000,
     });
     return result.stdout.trim();
-  } catch (error: any) {
-    if (error.message?.includes('Not authorized')) {
+  } catch (err: unknown) {
+    const msg = errorMessage(err);
+    if (msg.includes('Not authorized')) {
       throw new Error(
         'Contacts access denied. Grant permission in System Settings > Privacy & Security > Contacts'
       );
     }
-    throw error;
+    throw err;
   }
 }
 
@@ -38,7 +42,7 @@ async function runAppleScriptJSON<T>(script: string): Promise<T> {
   const result = await runAppleScript(script);
   if (!result) return [] as unknown as T;
   try {
-    return JSON.parse(result);
+    return JSON.parse(result) as T;
   } catch {
     return result as unknown as T;
   }
@@ -337,7 +341,7 @@ async function getContact(contactId: string): Promise<Contact | null> {
   const result = await runAppleScript(script);
   if (result === 'null') return null;
   try {
-    return JSON.parse(result);
+    return JSON.parse(result) as Contact;
   } catch {
     return null;
   }
@@ -497,15 +501,33 @@ async function searchContacts(query: string, options: { limit?: number } = {}): 
 // Create Contact
 // ============================================================================
 
-async function createContact(data: {
+interface PhoneEntry {
+  label: string;
+  value: string;
+}
+
+interface EmailEntry {
+  label: string;
+  value: string;
+}
+
+interface CreateContactData {
   firstName?: string;
   lastName?: string;
   company?: string;
   jobTitle?: string;
-  phones?: { label: string; value: string }[];
-  emails?: { label: string; value: string }[];
+  phones?: PhoneEntry[];
+  emails?: EmailEntry[];
   note?: string;
-}): Promise<{ success: boolean; id?: string; error?: string }> {
+}
+
+interface MutationResult {
+  success: boolean;
+  id?: string;
+  error?: string;
+}
+
+async function createContact(data: CreateContactData): Promise<MutationResult> {
   const {
     firstName = '',
     lastName = '',
@@ -549,8 +571,8 @@ async function createContact(data: {
   try {
     const id = await runAppleScript(script);
     return { success: true, id };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (err: unknown) {
+    return { success: false, error: errorMessage(err) };
   }
 }
 
@@ -558,16 +580,18 @@ async function createContact(data: {
 // Update Contact
 // ============================================================================
 
+interface UpdateContactFields {
+  firstName?: string;
+  lastName?: string;
+  company?: string;
+  jobTitle?: string;
+  nickname?: string;
+  note?: string;
+}
+
 async function updateContact(
   contactId: string,
-  updates: {
-    firstName?: string;
-    lastName?: string;
-    company?: string;
-    jobTitle?: string;
-    nickname?: string;
-    note?: string;
-  }
+  updates: UpdateContactFields
 ): Promise<{ success: boolean; error?: string }> {
   const { firstName, lastName, company, jobTitle, nickname, note } = updates;
 
@@ -610,8 +634,8 @@ async function updateContact(
   try {
     await runAppleScript(script);
     return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (err: unknown) {
+    return { success: false, error: errorMessage(err) };
   }
 }
 
@@ -631,8 +655,8 @@ async function deleteContact(contactId: string): Promise<{ success: boolean; err
   try {
     await runAppleScript(script);
     return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (err: unknown) {
+    return { success: false, error: errorMessage(err) };
   }
 }
 
@@ -674,9 +698,7 @@ async function getGroups(): Promise<ContactGroup[]> {
   return runAppleScriptJSON<ContactGroup[]>(script);
 }
 
-async function createGroup(
-  name: string
-): Promise<{ success: boolean; id?: string; error?: string }> {
+async function createGroup(name: string): Promise<MutationResult> {
   const escapedName = name.replace(/"/g, '\\"');
 
   const script = `
@@ -690,8 +712,8 @@ async function createGroup(
   try {
     const id = await runAppleScript(script);
     return { success: true, id };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (err: unknown) {
+    return { success: false, error: errorMessage(err) };
   }
 }
 
@@ -709,8 +731,8 @@ async function deleteGroup(groupName: string): Promise<{ success: boolean; error
   try {
     await runAppleScript(script);
     return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (err: unknown) {
+    return { success: false, error: errorMessage(err) };
   }
 }
 
@@ -733,8 +755,8 @@ async function addToGroup(
   try {
     await runAppleScript(script);
     return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (err: unknown) {
+    return { success: false, error: errorMessage(err) };
   }
 }
 
@@ -757,8 +779,8 @@ async function removeFromGroup(
   try {
     await runAppleScript(script);
     return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (err: unknown) {
+    return { success: false, error: errorMessage(err) };
   }
 }
 
@@ -768,10 +790,11 @@ async function removeFromGroup(
 
 async function openContacts(): Promise<{ success: boolean; error?: string }> {
   try {
-    await execAsync(`open -a Contacts`);
+    // execFile avoids shell interpretation; 'open' is a fixed path, no injection risk
+    await execFileAsync('open', ['-a', 'Contacts']);
     return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (err: unknown) {
+    return { success: false, error: errorMessage(err) };
   }
 }
 
@@ -786,8 +809,8 @@ async function openContact(contactId: string): Promise<{ success: boolean; error
   try {
     await runAppleScript(script);
     return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (err: unknown) {
+    return { success: false, error: errorMessage(err) };
   }
 }
 
@@ -976,7 +999,37 @@ const tools: Tool[] = [
 // Tool Handler
 // ============================================================================
 
-async function handleToolCall(name: string, args: Record<string, any>): Promise<string> {
+function asString(v: unknown): string | undefined {
+  return typeof v === 'string' ? v : undefined;
+}
+
+function asNumber(v: unknown): number | undefined {
+  return typeof v === 'number' ? v : undefined;
+}
+
+function asPhoneEntries(v: unknown): PhoneEntry[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  return v.filter(
+    (item): item is PhoneEntry =>
+      typeof item === 'object' &&
+      item !== null &&
+      typeof (item as Record<string, unknown>).label === 'string' &&
+      typeof (item as Record<string, unknown>).value === 'string'
+  );
+}
+
+function asEmailEntries(v: unknown): EmailEntry[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  return v.filter(
+    (item): item is EmailEntry =>
+      typeof item === 'object' &&
+      item !== null &&
+      typeof (item as Record<string, unknown>).label === 'string' &&
+      typeof (item as Record<string, unknown>).value === 'string'
+  );
+}
+
+async function handleToolCall(name: string, args: Record<string, unknown>): Promise<string> {
   switch (name) {
     case 'contacts_check_permissions': {
       const status = await checkPermissions();
@@ -985,15 +1038,16 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
 
     case 'contacts_get_all': {
       const contacts = await getContacts({
-        limit: args.limit,
-        group: args.group,
+        limit: asNumber(args.limit),
+        group: asString(args.group),
       });
       return JSON.stringify(contacts, null, 2);
     }
 
     case 'contacts_get_contact': {
-      if (!args.contact_id) throw new Error('contact_id is required');
-      const contact = await getContact(args.contact_id);
+      const contactId = asString(args.contact_id);
+      if (!contactId) throw new Error('contact_id is required');
+      const contact = await getContact(contactId);
       if (!contact) {
         return JSON.stringify({ error: 'Contact not found' }, null, 2);
       }
@@ -1001,40 +1055,43 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
     }
 
     case 'contacts_search': {
-      if (!args.query) throw new Error('query is required');
-      const contacts = await searchContacts(args.query, { limit: args.limit });
+      const query = asString(args.query);
+      if (!query) throw new Error('query is required');
+      const contacts = await searchContacts(query, { limit: asNumber(args.limit) });
       return JSON.stringify(contacts, null, 2);
     }
 
     case 'contacts_create': {
       const result = await createContact({
-        firstName: args.first_name,
-        lastName: args.last_name,
-        company: args.company,
-        jobTitle: args.job_title,
-        phones: args.phones,
-        emails: args.emails,
-        note: args.note,
+        firstName: asString(args.first_name),
+        lastName: asString(args.last_name),
+        company: asString(args.company),
+        jobTitle: asString(args.job_title),
+        phones: asPhoneEntries(args.phones),
+        emails: asEmailEntries(args.emails),
+        note: asString(args.note),
       });
       return JSON.stringify(result, null, 2);
     }
 
     case 'contacts_update': {
-      if (!args.contact_id) throw new Error('contact_id is required');
-      const result = await updateContact(args.contact_id, {
-        firstName: args.first_name,
-        lastName: args.last_name,
-        company: args.company,
-        jobTitle: args.job_title,
-        nickname: args.nickname,
-        note: args.note,
+      const contactId = asString(args.contact_id);
+      if (!contactId) throw new Error('contact_id is required');
+      const result = await updateContact(contactId, {
+        firstName: asString(args.first_name),
+        lastName: asString(args.last_name),
+        company: asString(args.company),
+        jobTitle: asString(args.job_title),
+        nickname: asString(args.nickname),
+        note: asString(args.note),
       });
       return JSON.stringify(result, null, 2);
     }
 
     case 'contacts_delete': {
-      if (!args.contact_id) throw new Error('contact_id is required');
-      const result = await deleteContact(args.contact_id);
+      const contactId = asString(args.contact_id);
+      if (!contactId) throw new Error('contact_id is required');
+      const result = await deleteContact(contactId);
       return JSON.stringify(result, null, 2);
     }
 
@@ -1044,26 +1101,32 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
     }
 
     case 'contacts_create_group': {
-      if (!args.name) throw new Error('name is required');
-      const result = await createGroup(args.name);
+      const groupName = asString(args.name);
+      if (!groupName) throw new Error('name is required');
+      const result = await createGroup(groupName);
       return JSON.stringify(result, null, 2);
     }
 
     case 'contacts_delete_group': {
-      if (!args.name) throw new Error('name is required');
-      const result = await deleteGroup(args.name);
+      const groupName = asString(args.name);
+      if (!groupName) throw new Error('name is required');
+      const result = await deleteGroup(groupName);
       return JSON.stringify(result, null, 2);
     }
 
     case 'contacts_add_to_group': {
-      if (!args.contact_id || !args.group) throw new Error('contact_id and group are required');
-      const result = await addToGroup(args.contact_id, args.group);
+      const contactId = asString(args.contact_id);
+      const group = asString(args.group);
+      if (!contactId || !group) throw new Error('contact_id and group are required');
+      const result = await addToGroup(contactId, group);
       return JSON.stringify(result, null, 2);
     }
 
     case 'contacts_remove_from_group': {
-      if (!args.contact_id || !args.group) throw new Error('contact_id and group are required');
-      const result = await removeFromGroup(args.contact_id, args.group);
+      const contactId = asString(args.contact_id);
+      const group = asString(args.group);
+      if (!contactId || !group) throw new Error('contact_id and group are required');
+      const result = await removeFromGroup(contactId, group);
       return JSON.stringify(result, null, 2);
     }
 
@@ -1073,8 +1136,9 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
     }
 
     case 'contacts_open_contact': {
-      if (!args.contact_id) throw new Error('contact_id is required');
-      const result = await openContact(args.contact_id);
+      const contactId = asString(args.contact_id);
+      if (!contactId) throw new Error('contact_id is required');
+      const result = await openContact(contactId);
       return JSON.stringify(result, null, 2);
     }
 
@@ -1087,7 +1151,7 @@ async function handleToolCall(name: string, args: Record<string, any>): Promise<
 // Server Setup
 // ============================================================================
 
-async function main() {
+async function main(): Promise<void> {
   const server = new Server(
     { name: 'contacts-mcp', version: '1.0.0' },
     { capabilities: { tools: {} } }
@@ -1099,11 +1163,11 @@ async function main() {
     const { name, arguments: args } = request.params;
 
     try {
-      const result = await handleToolCall(name, args || {});
+      const result = await handleToolCall(name, (args ?? {}) as Record<string, unknown>);
       return { content: [{ type: 'text', text: result }] };
-    } catch (error: any) {
+    } catch (err: unknown) {
       return {
-        content: [{ type: 'text', text: `Error: ${error.message}` }],
+        content: [{ type: 'text', text: `Error: ${errorMessage(err)}` }],
         isError: true,
       };
     }
@@ -1115,7 +1179,7 @@ async function main() {
   console.error('Contacts MCP server v1.0.0 running on stdio');
 }
 
-main().catch((error) => {
-  console.error('Fatal error:', error);
+main().catch((err: unknown) => {
+  console.error('Fatal error:', err);
   process.exit(1);
 });

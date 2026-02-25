@@ -14,8 +14,8 @@
     "prepare": "husky",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
