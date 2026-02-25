@@ -6,7 +6,13 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { execSync } from 'child_process';
+import { execFile } from 'child_process';
+import { writeFile, unlink } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import { promisify } from 'util';
+
+const execFileAsync = promisify(execFile);
 
 const server = new Server(
   {
@@ -20,33 +26,37 @@ const server = new Server(
   }
 );
 
-// Helper function to run AppleScript
-// Note: Using execSync with osascript is required for AppleScript execution
-// All user input is properly escaped before being included in scripts
-function runAppleScript(script: string): string {
+// Write script to a temp file and execute via osascript <file> to avoid
+// shell-quoting injection. The -e approach requires escaping single quotes
+// in a shell context; file-based execution sidesteps that entirely.
+async function runAppleScript(script: string): Promise<string> {
+  const tmp = join(tmpdir(), `home-mcp-${process.pid}-${Date.now()}.scpt`);
+  await writeFile(tmp, script, 'utf-8');
   try {
-    return execSync(`osascript -e '${script.replace(/'/g, "'\"'\"'")}'`, {
-      encoding: 'utf-8',
+    const { stdout } = await execFileAsync('osascript', [tmp], {
       maxBuffer: 50 * 1024 * 1024,
-    }).trim();
+    });
+    return stdout.trim();
   } catch (error: unknown) {
     const err = error as Error & { stderr?: string };
-    throw new Error(`AppleScript error: ${err.stderr || err.message}`);
+    throw new Error(`AppleScript error: ${err.stderr ?? err.message}`);
+  } finally {
+    await unlink(tmp).catch(() => undefined);
   }
 }
 
-// Helper to run shortcuts - uses execSync for shortcuts CLI
-function runShortcut(name: string, input?: string): string {
+// shortcuts CLI does not accept file input; args are passed directly to
+// execFile (no shell interpolation), so the name and input are safe.
+async function runShortcut(name: string, input?: string): Promise<string> {
+  const args = ['run', name, ...(input !== undefined ? ['-i', input] : [])];
   try {
-    const escapedName = name.replace(/'/g, "'\"'\"'");
-    const inputPart = input ? ` -i '${input.replace(/'/g, "'\"'\"'")}'` : '';
-    return execSync(`shortcuts run '${escapedName}'${inputPart}`, {
-      encoding: 'utf-8',
+    const { stdout } = await execFileAsync('shortcuts', args, {
       maxBuffer: 50 * 1024 * 1024,
-    }).trim();
+    });
+    return stdout.trim();
   } catch (error: unknown) {
     const err = error as Error & { stderr?: string };
-    throw new Error(`Shortcut error: ${err.stderr || err.message}`);
+    throw new Error(`Shortcut error: ${err.stderr ?? err.message}`);
   }
 }
 
@@ -205,14 +215,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       case 'home_open': {
-        runAppleScript('tell application "Home" to activate');
+        await runAppleScript('tell application "Home" to activate');
         return { content: [{ type: 'text', text: 'Home app opened' }] };
       }
 
       case 'home_run_scene': {
         const scene = (args as { scene: string }).scene;
         try {
-          runShortcut(scene);
+          await runShortcut(scene);
           return {
             content: [{ type: 'text', text: `Activated scene: ${scene}` }],
           };
@@ -234,7 +244,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           action?: string;
         };
         try {
-          runShortcut(shortcutName, action);
+          await runShortcut(shortcutName, action);
           return {
             content: [
               {
@@ -259,8 +269,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'home_list_shortcuts': {
         const filter = (args as { filter?: string }).filter?.toLowerCase();
         try {
-          const result = execSync('shortcuts list', { encoding: 'utf-8' });
-          const shortcuts = result.split('\n').filter((s) => s.trim());
+          const { stdout } = await execFileAsync('shortcuts', ['list'], {
+            maxBuffer: 50 * 1024 * 1024,
+          });
+          const shortcuts = stdout.split('\n').filter((s) => s.trim());
           const homeRelated = filter
             ? shortcuts.filter((s) => s.toLowerCase().includes(filter))
             : shortcuts.filter(
@@ -312,7 +324,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const command = room ? `turn on ${room} lights` : 'turn on the lights';
         try {
           const shortcutName = room ? `${room} Lights On` : 'Lights On';
-          runShortcut(shortcutName);
+          await runShortcut(shortcutName);
           return {
             content: [
               { type: 'text', text: `Lights on${room ? ` in ${room}` : ''}` },
@@ -337,7 +349,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           : 'turn off the lights';
         try {
           const shortcutName = room ? `${room} Lights Off` : 'Lights Off';
-          runShortcut(shortcutName);
+          await runShortcut(shortcutName);
           return {
             content: [
               { type: 'text', text: `Lights off${room ? ` in ${room}` : ''}` },
@@ -362,7 +374,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
         const tempStr = `${temperature} degrees ${unit}`;
         try {
-          runShortcut('Set Thermostat', tempStr);
+          await runShortcut('Set Thermostat', tempStr);
           return {
             content: [
               {
@@ -385,7 +397,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'home_lock_doors': {
         try {
-          runShortcut('Lock Doors');
+          await runShortcut('Lock Doors');
           return { content: [{ type: 'text', text: 'Doors locked' }] };
         } catch {
           return {
@@ -401,7 +413,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'home_unlock_doors': {
         try {
-          runShortcut('Unlock Doors');
+          await runShortcut('Unlock Doors');
           return { content: [{ type: 'text', text: 'Doors unlocked' }] };
         } catch {
           return {
@@ -416,7 +428,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'home_get_status': {
-        runAppleScript('tell application "Home" to activate');
+        await runAppleScript('tell application "Home" to activate');
         return {
           content: [
             {
@@ -446,7 +458,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-async function main() {
+async function main(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('Home MCP server running on stdio');
