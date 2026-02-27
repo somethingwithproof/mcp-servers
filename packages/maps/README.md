@@ -10,6 +10,12 @@ MCP server for Apple Maps on macOS - search locations, get directions, and open 
 - **Nearby Search**: Find nearby restaurants, gas stations, hotels, etc.
 - **Shareable URLs**: Create Apple Maps URLs
 
+## Prerequisites
+
+- macOS
+- Node.js 18 or higher
+- Apple Maps app
+
 ## Installation
 
 ```bash
@@ -24,7 +30,7 @@ npx maps-mcp
 
 ## Configuration
 
-Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+Add to your MCP client config (e.g., Claude Desktop at `~/Library/Application Support/Claude/claude_desktop_config.json`):
 
 ```json
 {
@@ -37,11 +43,45 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 }
 ```
 
-## Requirements
+## Development
 
-- macOS
-- Node.js 18+
-- Apple Maps app
+Build the project:
+
+```bash
+npm run build
+```
+
+Watch mode for development:
+
+```bash
+npm run dev
+```
+
+Run linter:
+
+```bash
+npm run lint
+```
+
+Format code:
+
+```bash
+npm run format
+```
+
+## Testing
+
+Run tests:
+
+```bash
+npm test
+```
+
+Watch mode for tests:
+
+```bash
+npm run test:watch
+```
 
 ## Available Tools
 
