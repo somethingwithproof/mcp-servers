@@ -20,6 +20,11 @@ It cannot programmatically:
 - Enable/disable downtime
 - Access Screen Time reports
 
+## Prerequisites
+
+- macOS
+- Node.js 18+
+
 ## Installation
 
 ```bash
@@ -34,7 +39,7 @@ npx screen-time-mcp
 
 ## Configuration
 
-Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+Add to your MCP client configuration:
 
 ```json
 {
@@ -47,11 +52,6 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 }
 ```
 
-## Requirements
-
-- macOS
-- Node.js 18+
-
 ## Available Tools
 
 - **screentime_open** - Open Screen Time settings
@@ -62,17 +62,38 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 - **screentime_open_content_privacy** - Open Content & Privacy Restrictions
 - **screentime_get_info** - Get information about capabilities
 
-## Example Usage
+## Development
 
+```bash
+# Install dependencies
+npm install
+
+# Build the project
+npm run build
+
+# Run in development mode with watch
+npm run dev
+
+# Run tests
+npm test
+
+# Run linter
+npm run lint
+
+# Format code
+npm run format
 ```
-Open my Screen Time settings
-Show me the App Limits settings
+
+## Testing
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
 ```
 
 ## License
 
 MIT License - see LICENSE file for details.
-
-## Author
-
-Thomas Vincent
