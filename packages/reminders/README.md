@@ -1,6 +1,6 @@
 # Reminders MCP Server
 
-A Model Context Protocol (MCP) server for Apple Reminders on macOS. Provides AI assistants like Claude with full access to create, manage, and search reminders through the native Reminders app.
+A Model Context Protocol (MCP) server for Apple Reminders on macOS. Provides full access to create, manage, and search reminders through the native Reminders app.
 
 ## Features
 
@@ -18,7 +18,7 @@ A Model Context Protocol (MCP) server for Apple Reminders on macOS. Provides AI 
 - **Overdue** - Find past-due incomplete reminders
 - **Upcoming** - Get reminders due within N days
 
-## Requirements
+## Prerequisites
 
 - macOS 12 or later
 - Node.js 18+
@@ -41,19 +41,9 @@ npm install
 npm run build
 ```
 
-## Setup
+## Configuration
 
-### 1. Grant Permissions
-
-On first use, macOS will prompt for Reminders access. Click "OK" to allow.
-
-If you need to grant permission manually:
-1. Open **System Settings** > **Privacy & Security** > **Reminders**
-2. Enable access for your terminal app
-
-### 2. Configure Claude Desktop
-
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+Add to your MCP client configuration:
 
 ```json
 {
@@ -66,7 +56,13 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-### 3. Restart Claude Desktop
+### Grant Permissions
+
+On first use, macOS will prompt for Reminders access. Click "OK" to allow.
+
+If you need to grant permission manually:
+1. Open **System Settings** > **Privacy & Security** > **Reminders**
+2. Enable access for your terminal app
 
 ## Available Tools
 
@@ -102,18 +98,25 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 |------|-------------|
 | `reminders_check_permissions` | Check Reminders access permission |
 
-## Example Usage
+## Development
 
-Once configured, ask Claude to:
+```bash
+# Install dependencies
+npm install
 
-- "What reminders do I have?"
-- "Show my reminder lists"
-- "Create a reminder to buy groceries tomorrow at 5pm"
-- "What's overdue?"
-- "Mark the groceries reminder as done"
-- "Search reminders for 'meeting'"
-- "What do I have due this week?"
-- "Add a high priority reminder to call Mom"
+# Build the project
+npm run build
+
+# Run in development mode with watch
+npm run dev
+```
+
+## Testing
+
+This project uses manual testing with the Reminders app. Ensure you have:
+- Test reminder lists set up
+- Sample reminders with various due dates
+- Both completed and incomplete reminders
 
 ## Priority Levels
 
@@ -159,7 +162,3 @@ Due dates use ISO 8601 format:
 ## License
 
 MIT
-
-## Contributing
-
-Contributions welcome! Please open an issue or submit a PR.

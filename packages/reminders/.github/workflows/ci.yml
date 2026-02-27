@@ -12,9 +12,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify CLAUDE.md exists
-        run: test -f CLAUDE.md
-
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
