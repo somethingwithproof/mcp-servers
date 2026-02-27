@@ -11,6 +11,12 @@ MCP server for Apple Photos on macOS - browse albums, search photos, export imag
 - **Import**: Import photos into your library
 - **Favorites**: Mark photos as favorites
 
+## Prerequisites
+
+- macOS (uses AppleScript to interact with Photos.app)
+- Node.js 18+
+- Photos app installed with a library
+
 ## Installation
 
 ```bash
@@ -25,7 +31,7 @@ npx photos-mcp
 
 ## Configuration
 
-Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+Add to your MCP client configuration:
 
 ```json
 {
@@ -37,12 +43,6 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
   }
 }
 ```
-
-## Requirements
-
-- macOS (uses AppleScript to interact with Photos.app)
-- Node.js 18+
-- Photos app installed with a library
 
 ## Available Tools
 
@@ -84,36 +84,36 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 - **photos_open** - Open the Photos app
 - **photos_open_album** - Open a specific album
 
-## Example Usage
+## Development
 
-### Browse your library
+```bash
+# Install dependencies
+npm install
 
-```
-Show me my photo albums
-How many photos do I have?
-Show me my recent photos
-```
+# Build the project
+npm run build
 
-### Search for photos
+# Run in development mode with watch
+npm run dev
 
-```
-Search for photos with "vacation" in the name
-Find photos from January 2024
-Show me my favorite photos
-```
+# Run tests
+npm test
 
-### Export photos
+# Run linter
+npm run lint
 
-```
-Export photos from my "Hawaii Trip" album
-Export the 10 most recent photos
+# Format code
+npm run format
 ```
 
-### Manage albums
+## Testing
 
-```
-Create an album called "Best of 2024"
-Show me what's in the "Family" album
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
 ```
 
 ## Privacy & Security
@@ -136,7 +136,3 @@ This MCP server:
 ## License
 
 MIT License - see LICENSE file for details.
-
-## Author
-
-Thomas Vincent
