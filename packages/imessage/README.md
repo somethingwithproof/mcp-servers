@@ -36,10 +36,10 @@ A comprehensive Model Context Protocol (MCP) server for iMessage on macOS. Provi
 - **Permission Check** - Verify database, contacts, and automation access
 - **iMessage Check** - Determine if a contact uses iMessage or SMS
 
-## Requirements
+## Prerequisites
 
 - macOS 12 or later
-- Node.js 18+
+- Node.js 18 or higher
 - Full Disk Access permission (required)
 - Contacts permission (optional, for name resolution)
 - Automation permission (optional, for sending messages)
@@ -80,9 +80,9 @@ npm run build
 
 - Permission is requested automatically when sending the first message
 
-### 2. Configure Claude Desktop
+### 2. Configure MCP Client
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+Add to your MCP client config (e.g., Claude Desktop at `~/Library/Application Support/Claude/claude_desktop_config.json`):
 
 ```json
 {
@@ -111,7 +111,47 @@ For semantic search, add your OpenAI API key:
 }
 ```
 
-### 3. Restart Claude Desktop
+### 3. Restart MCP Client
+
+## Development
+
+Build the project:
+
+```bash
+npm run build
+```
+
+Watch mode for development:
+
+```bash
+npm run dev
+```
+
+Run linter:
+
+```bash
+npm run lint
+```
+
+Format code:
+
+```bash
+npm run format
+```
+
+## Testing
+
+Run tests:
+
+```bash
+npm test
+```
+
+Watch mode for tests:
+
+```bash
+npm run test:watch
+```
 
 ## Available Tools
 
