@@ -18,10 +18,10 @@ A Model Context Protocol (MCP) server for Apple Calendar on macOS. Provides AI a
 - **Today's Events** - Get all events for today
 - **Upcoming Events** - Get events for the next N days
 
-## Requirements
+## Prerequisites
 
 - macOS 12 or later
-- Node.js 18+
+- Node.js 18 or higher
 - Calendar permission (granted on first use)
 
 ## Installation
@@ -41,9 +41,9 @@ npm install
 npm run build
 ```
 
-## Setup
+## Configuration
 
-### 1. Grant Permissions
+### Grant Permissions
 
 On first use, macOS will prompt for Calendar access. Click "OK" to allow.
 
@@ -52,9 +52,9 @@ If you need to grant permission manually:
 1. Open **System Settings** > **Privacy & Security** > **Calendars**
 2. Enable access for your terminal app
 
-### 2. Configure Claude Desktop
+### MCP Client Setup
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+Add to your MCP client config (e.g., Claude Desktop at `~/Library/Application Support/Claude/claude_desktop_config.json`):
 
 ```json
 {
@@ -67,7 +67,53 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-### 3. Restart Claude Desktop
+Restart your MCP client after configuration changes.
+
+## Development
+
+Build the project:
+
+```bash
+npm run build
+```
+
+Watch mode for development:
+
+```bash
+npm run dev
+```
+
+Run linter:
+
+```bash
+npm run lint
+```
+
+Format code:
+
+```bash
+npm run format
+```
+
+## Testing
+
+Run tests:
+
+```bash
+npm test
+```
+
+Watch mode for tests:
+
+```bash
+npm run test:watch
+```
+
+Run tests with coverage:
+
+```bash
+npm run test:coverage
+```
 
 ## Available Tools
 
