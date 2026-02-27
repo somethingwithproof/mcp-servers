@@ -1,6 +1,6 @@
 # Notes MCP Server
 
-A Model Context Protocol (MCP) server for Apple Notes on macOS. Provides AI assistants like Claude with full access to create, search, and manage notes.
+A Model Context Protocol (MCP) server for Apple Notes on macOS. Provides full access to create, search, and manage notes.
 
 ## Features
 
@@ -19,7 +19,7 @@ A Model Context Protocol (MCP) server for Apple Notes on macOS. Provides AI assi
 ### Search
 - **Search Notes** - Find notes by text in title or content
 
-## Requirements
+## Prerequisites
 
 - macOS 12 or later
 - Node.js 18+
@@ -42,15 +42,9 @@ npm install
 npm run build
 ```
 
-## Setup
+## Configuration
 
-### 1. Grant Permissions
-
-On first use, macOS will prompt for Automation access to Notes. Click "OK" to allow.
-
-### 2. Configure Claude Desktop
-
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+Add to your MCP client configuration:
 
 ```json
 {
@@ -63,7 +57,9 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-### 3. Restart Claude Desktop
+### Grant Permissions
+
+On first use, macOS will prompt for Automation access to Notes. Click "OK" to allow.
 
 ## Available Tools
 
@@ -98,17 +94,25 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 |------|-------------|
 | `notes_check_permissions` | Check Notes access permission |
 
-## Example Usage
+## Development
 
-Once configured, ask Claude to:
+```bash
+# Install dependencies
+npm install
 
-- "What notes do I have?"
-- "Show my recent notes"
-- "Search my notes for 'project ideas'"
-- "Create a note called 'Meeting Notes' with today's discussion"
-- "Add a new item to my Shopping List note"
-- "What folders do I have in Notes?"
-- "Show notes in my Work folder"
+# Build the project
+npm run build
+
+# Run in development mode with watch
+npm run dev
+```
+
+## Testing
+
+This project uses manual testing with the Notes app. Ensure you have:
+- Test notes in your Notes app
+- Different folders set up
+- Both iCloud and local notes (if applicable)
 
 ## Content Format
 
@@ -144,7 +148,3 @@ Notes support both plain text and HTML:
 ## License
 
 MIT
-
-## Contributing
-
-Contributions welcome! Please open an issue or submit a PR.
