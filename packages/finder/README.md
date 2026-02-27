@@ -15,6 +15,12 @@ MCP server for macOS Finder - file operations, Spotlight search, and tags via th
 - **Folder Creation**: Create new folders
 - **Selection**: Get currently selected items in Finder
 
+## Prerequisites
+
+- macOS (uses AppleScript, Spotlight, and xattr)
+- Node.js 18 or higher
+- Automation permission for Finder (will be requested on first use)
+
 ## Installation
 
 ```bash
@@ -29,7 +35,7 @@ npx finder-mcp
 
 ## Configuration
 
-Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+Add to your MCP client config (e.g., Claude Desktop at `~/Library/Application Support/Claude/claude_desktop_config.json`):
 
 ```json
 {
@@ -42,11 +48,23 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 }
 ```
 
-## Requirements
+## Development
 
-- macOS (uses AppleScript, Spotlight, and xattr)
-- Node.js 18+
-- Automation permission for Finder (will be requested on first use)
+Build the project:
+
+```bash
+npm run build
+```
+
+Watch mode for development:
+
+```bash
+npm run dev
+```
+
+## Testing
+
+No tests configured yet.
 
 ## Available Tools
 
