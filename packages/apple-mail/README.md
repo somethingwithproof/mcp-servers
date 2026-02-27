@@ -12,6 +12,12 @@ A Model Context Protocol (MCP) server for Apple Mail on macOS. Read, send, searc
 - **Organize**: Mark as read/unread, delete, move between mailboxes
 - **Statistics**: Get unread counts per account/mailbox
 
+## Prerequisites
+
+- macOS with Apple Mail configured
+- Node.js 18 or higher
+- Apple Mail must have at least one account configured
+
 ## Installation
 
 ```bash
@@ -29,7 +35,7 @@ npm run build
 
 ## Configuration
 
-Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+Add to your MCP client config (e.g., Claude Desktop at `~/Library/Application Support/Claude/claude_desktop_config.json`):
 
 ```json
 {
@@ -40,6 +46,46 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
     }
   }
 }
+```
+
+## Development
+
+Build the project:
+
+```bash
+npm run build
+```
+
+Watch mode for development:
+
+```bash
+npm run dev
+```
+
+Run linter:
+
+```bash
+npm run lint
+```
+
+Format code:
+
+```bash
+npm run format
+```
+
+## Testing
+
+Run tests:
+
+```bash
+npm test
+```
+
+Watch mode for tests:
+
+```bash
+npm run test:watch
 ```
 
 ## Available Tools
@@ -76,12 +122,6 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 - `mail_unread_count` - Get unread email count
 - `mail_open` - Open Apple Mail application
 - `mail_check` - Check for new emails
-
-## Requirements
-
-- macOS with Apple Mail configured
-- Node.js 18+
-- Apple Mail must have at least one account configured
 
 ## Permissions
 
