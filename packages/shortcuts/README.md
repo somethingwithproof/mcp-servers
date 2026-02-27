@@ -1,14 +1,14 @@
 # Shortcuts MCP Server
 
-A Model Context Protocol (MCP) server for Apple Shortcuts on macOS. Run any shortcut from AI assistants like Claude - a force multiplier that unlocks the entire Shortcuts automation ecosystem.
+A Model Context Protocol (MCP) server for Apple Shortcuts on macOS. Run any shortcut from MCP-compatible applications - a force multiplier that unlocks the entire Shortcuts automation ecosystem.
 
 ## Why This Matters
 
 Instead of building custom MCPs for every app, you can:
 1. Create a Shortcut in the Shortcuts app
-2. Run it through Claude via this MCP
+2. Run it through your MCP client via this server
 
-This gives Claude access to **anything Shortcuts can do**: HomeKit, Music, Mail, Files, web APIs, and thousands of third-party app integrations.
+This gives MCP clients access to **anything Shortcuts can do**: HomeKit, Music, Mail, Files, web APIs, and thousands of third-party app integrations.
 
 ## Features
 
@@ -18,7 +18,7 @@ This gives Claude access to **anything Shortcuts can do**: HomeKit, Music, Mail,
 - **Pass Input** - Send text or files to shortcuts
 - **Get Output** - Receive shortcut results
 
-## Requirements
+## Prerequisites
 
 - macOS 12 or later
 - Node.js 18+
@@ -41,11 +41,9 @@ npm install
 npm run build
 ```
 
-## Setup
+## Configuration
 
-### 1. Configure Claude Desktop
-
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+Add to your MCP client configuration:
 
 ```json
 {
@@ -57,8 +55,6 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   }
 }
 ```
-
-### 2. Restart Claude Desktop
 
 No special permissions needed - Shortcuts are controlled via the `shortcuts` CLI.
 
@@ -72,46 +68,34 @@ No special permissions needed - Shortcuts are controlled via the `shortcuts` CLI
 | `shortcuts_run` | Run a shortcut (with optional input) |
 | `shortcuts_exists` | Check if a shortcut exists |
 
-## Example Usage
+## Development
 
-Once configured, ask Claude to:
+```bash
+# Install dependencies
+npm install
 
-- "What shortcuts do I have?"
-- "Run the 'Morning Routine' shortcut"
-- "Search for shortcuts about email"
-- "Run 'Process Text' with input 'Hello World'"
-- "Do I have a shortcut called 'Backup Photos'?"
+# Build the project
+npm run build
 
-## Power User Examples
-
-### Home Automation
-```
-"Run 'Goodnight' shortcut" → Turns off all lights, locks doors, sets thermostat
+# Run in development mode with watch
+npm run dev
 ```
 
-### Quick Actions
-```
-"Run 'New Meeting Note'" → Creates a formatted note in your notes app
-```
+## Testing
 
-### Data Processing
-```
-"Run 'Summarize Clipboard' with the text I just copied" → Uses Shortcuts to process text
-```
+This project uses manual testing with the Shortcuts app. Ensure you have:
+- Test shortcuts created in the Shortcuts app
+- Shortcuts with various input/output types
+- Both simple and complex shortcuts
 
-### System Control
-```
-"Run 'Toggle Dark Mode'" → Switches system appearance
-```
+## Creating Shortcuts for MCP Clients
 
-## Creating Shortcuts for Claude
-
-For best results when creating shortcuts to use with Claude:
+For best results when creating shortcuts to use with MCP clients:
 
 1. **Name clearly** - Use descriptive names like "Send Email to Team"
 2. **Accept input** - Configure shortcuts to receive text input when useful
-3. **Return output** - Use "Stop and Output" to return results to Claude
-4. **Handle errors** - Add error handling so Claude gets useful feedback
+3. **Return output** - Use "Stop and Output" to return results to the client
+4. **Handle errors** - Add error handling so the client gets useful feedback
 
 ## Input/Output
 
@@ -154,12 +138,3 @@ Specify output format with `output_type`:
 ## License
 
 MIT
-
-## Contributing
-
-Contributions welcome! Please open an issue or submit a PR.
-
-Ideas for contributions:
-- Shortcut templates for common tasks
-- Documentation for creating Claude-friendly shortcuts
-- Integration examples
