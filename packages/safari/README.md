@@ -12,6 +12,12 @@ MCP server for Safari on macOS - tabs, windows, bookmarks, history, and reading 
 - **Page Content**: Get page text content and HTML source
 - **JavaScript Execution**: Run JavaScript in the current tab
 
+## Prerequisites
+
+- macOS (uses AppleScript to interact with Safari)
+- Node.js 18+
+- For JavaScript execution: Enable "Allow JavaScript from Apple Events" in Safari's Develop menu
+
 ## Installation
 
 ```bash
@@ -26,7 +32,7 @@ npx safari-mcp
 
 ## Configuration
 
-Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+Add to your MCP client configuration:
 
 ```json
 {
@@ -39,11 +45,14 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 }
 ```
 
-## Requirements
+### Enabling JavaScript Execution
 
-- macOS (uses AppleScript to interact with Safari)
-- Node.js 18+
-- For JavaScript execution: Enable "Allow JavaScript from Apple Events" in Safari's Develop menu
+To use `safari_run_javascript`, `safari_back`, and `safari_forward`:
+
+1. Open Safari
+2. Go to Safari > Settings > Advanced
+3. Check "Show features for web developers"
+4. Go to Develop menu > Allow JavaScript from Apple Events
 
 ## Available Tools
 
@@ -88,40 +97,40 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 - **safari_open** - Open Safari application
 - **safari_activate** - Bring Safari to foreground
 
-## Example Usage
+## Development
 
-### Get current tab info
+```bash
+# Install dependencies
+npm install
 
-```
-What page am I currently viewing in Safari?
-```
+# Build the project
+npm run build
 
-### Open a URL
+# Run in development mode with watch
+npm run dev
 
-```
-Open https://example.com in Safari
-```
+# Run tests
+npm test
 
-### Search tabs
+# Run linter
+npm run lint
 
-```
-Find all Safari tabs with "GitHub" in the title
-```
-
-### Get page content
-
-```
-Get the text content of the current Safari page
+# Format code
+npm run format
 ```
 
-## Enabling JavaScript Execution
+## Testing
 
-To use `safari_run_javascript`, `safari_back`, and `safari_forward`:
+```bash
+# Run all tests
+npm test
 
-1. Open Safari
-2. Go to Safari > Settings > Advanced
-3. Check "Show features for web developers"
-4. Go to Develop menu > Allow JavaScript from Apple Events
+# Run tests in watch mode
+npm run test:watch
+
+# Generate coverage report
+npm run test:coverage
+```
 
 ## Privacy & Security
 
@@ -135,7 +144,3 @@ This MCP server:
 ## License
 
 MIT License - see LICENSE file for details.
-
-## Author
-
-Thomas Vincent
