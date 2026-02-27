@@ -13,6 +13,12 @@ MCP server for Apple Music on macOS - playback control, library management, play
 - **Play Specific Content**: Play songs, albums, artists, or playlists
 - **Favorites**: Love or dislike tracks
 
+## Prerequisites
+
+- macOS (uses AppleScript to interact with Music.app)
+- Node.js 18+
+- Apple Music app installed
+
 ## Installation
 
 ```bash
@@ -27,7 +33,7 @@ npx music-mcp
 
 ## Configuration
 
-Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+Add to your MCP client configuration:
 
 ```json
 {
@@ -39,12 +45,6 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
   }
 }
 ```
-
-## Requirements
-
-- macOS (uses AppleScript to interact with Music.app)
-- Node.js 18+
-- Apple Music app installed
 
 ## Available Tools
 
@@ -103,43 +103,39 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 - **music_open** - Open the Music app
 - **music_quit** - Quit the Music app
 
-## Example Usage
+## Development
 
-### Control playback
+```bash
+# Install dependencies
+npm install
 
-```
-Play some music
-Pause the music
-Skip to the next track
-```
+# Build the project
+npm run build
 
-### Get current track info
+# Run in development mode with watch
+npm run dev
 
-```
-What song is playing?
-```
+# Run tests
+npm test
 
-### Search and play
+# Run linter
+npm run lint
 
-```
-Play "Bohemian Rhapsody"
-Play the album "Abbey Road"
-Play songs by The Beatles
-Search for "jazz" in my library
+# Format code
+npm run format
 ```
 
-### Control volume
+## Testing
 
-```
-Set the volume to 50%
-What's the current volume?
-```
+```bash
+# Run all tests
+npm test
 
-### Manage playlists
+# Run tests in watch mode
+npm run test:watch
 
-```
-Show me my playlists
-Play my "Favorites" playlist on shuffle
+# Generate coverage report
+npm run test:coverage
 ```
 
 ## Privacy & Security
@@ -154,7 +150,3 @@ This MCP server:
 ## License
 
 MIT License - see LICENSE file for details.
-
-## Author
-
-Thomas Vincent
