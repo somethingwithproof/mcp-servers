@@ -13,6 +13,13 @@ MCP server for Apple Home on macOS - control HomeKit devices, scenes, and automa
 
 Apple Home/HomeKit has limited AppleScript support. This MCP server works best when you create Shortcuts in the Shortcuts app that control your HomeKit devices. The MCP can then trigger these Shortcuts.
 
+## Prerequisites
+
+- macOS (uses Shortcuts app for HomeKit control)
+- Node.js 18 or higher
+- Apple Home app with configured HomeKit devices
+- Shortcuts app with HomeKit Shortcuts created (see Setup section)
+
 ## Installation
 
 ```bash
@@ -27,7 +34,7 @@ npx home-mcp
 
 ## Configuration
 
-Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+Add to your MCP client config (e.g., Claude Desktop at `~/Library/Application Support/Claude/claude_desktop_config.json`):
 
 ```json
 {
@@ -39,13 +46,6 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
   }
 }
 ```
-
-## Requirements
-
-- macOS (uses Shortcuts app for HomeKit control)
-- Node.js 18+
-- Apple Home app with configured HomeKit devices
-- Shortcuts app with HomeKit Shortcuts created (see Setup section)
 
 ## Setup: Creating HomeKit Shortcuts
 
@@ -72,6 +72,52 @@ For best results, create these Shortcuts in the Shortcuts app:
 3. Add action: "Control Home"
 4. Select your scene
 5. Name the Shortcut with the scene name
+
+## Development
+
+Build the project:
+
+```bash
+npm run build
+```
+
+Watch mode for development:
+
+```bash
+npm run dev
+```
+
+Run linter:
+
+```bash
+npm run lint
+```
+
+Format code:
+
+```bash
+npm run format
+```
+
+## Testing
+
+Run tests:
+
+```bash
+npm test
+```
+
+Watch mode for tests:
+
+```bash
+npm run test:watch
+```
+
+Run tests with coverage:
+
+```bash
+npm run test:coverage
+```
 
 ## Available Tools
 
