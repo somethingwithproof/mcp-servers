@@ -10,6 +10,12 @@ MCP server for Apple Contacts on macOS - full contact CRUD, search, and group ma
 - **Open Actions**: Open Contacts app or specific contact cards
 - **Permission Checking**: Verify contacts access before operations
 
+## Prerequisites
+
+- macOS (uses AppleScript to interact with Contacts.app)
+- Node.js 18 or higher
+- Contacts access permission granted to the terminal/app running the MCP server
+
 ## Installation
 
 ```bash
@@ -24,7 +30,7 @@ npx contacts-mcp
 
 ## Configuration
 
-Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+Add to your MCP client config (e.g., Claude Desktop at `~/Library/Application Support/Claude/claude_desktop_config.json`):
 
 ```json
 {
@@ -37,11 +43,45 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 }
 ```
 
-## Requirements
+## Development
 
-- macOS (uses AppleScript to interact with Contacts.app)
-- Node.js 18+
-- Contacts access permission granted to the terminal/app running the MCP server
+Build the project:
+
+```bash
+npm run build
+```
+
+Watch mode for development:
+
+```bash
+npm run dev
+```
+
+Run linter:
+
+```bash
+npm run lint
+```
+
+Format code:
+
+```bash
+npm run format
+```
+
+## Testing
+
+Run tests:
+
+```bash
+npm test
+```
+
+Watch mode for tests:
+
+```bash
+npm run test:watch
+```
 
 ## Available Tools
 
