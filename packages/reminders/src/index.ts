@@ -184,22 +184,22 @@ async function getReminders(
     ? `list "${listName.replace(/"/g, '\\"')}"`
     : "default list";
 
-  let completedFilter = "";
+  let completedCondition: string;
   if (completed === true) {
-    completedFilter = "whose completed is true";
+    completedCondition = "completed of r is true";
   } else if (completed === false) {
-    completedFilter = "whose completed is false";
+    completedCondition = "completed of r is false";
+  } else {
+    completedCondition = "true";
   }
 
   const script = `
     tell application "Reminders"
       set output to "["
       set theList to ${listFilter}
-      set allReminders to reminders ${completedFilter} in theList
-      set itemCount to count of allReminders
-      if itemCount > ${limit} then set itemCount to ${limit}
-      repeat with i from 1 to itemCount
-        set r to item i of allReminders
+      set collected to 0
+      repeat with r in (reminders of theList)
+        if ${completedCondition} then
         set rId to id of r
         set rName to name of r
         set rBody to body of r
@@ -225,7 +225,7 @@ async function getReminders(
         set rBody to my replaceText(rBody, "\\"", "\\\\\\"")
         set rBody to my replaceText(rBody, return, "\\\\n")
 
-        if i > 1 then set output to output & ","
+        if collected > 0 then set output to output & ","
         set output to output & "{\\"id\\":\\"" & rId & "\\","
         set output to output & "\\"name\\":\\"" & rName & "\\","
         set output to output & "\\"body\\":\\"" & rBody & "\\","
@@ -236,6 +236,9 @@ async function getReminders(
         set output to output & "\\"list\\":\\"" & rListName & "\\","
         set output to output & "\\"creationDate\\":\\"" & (rCreation as «class isot» as string) & "\\","
         set output to output & "\\"modificationDate\\":\\"" & (rMod as «class isot» as string) & "\\"}"
+        set collected to collected + 1
+        if collected >= ${limit} then exit repeat
+        end if
       end repeat
       set output to output & "]"
       return output
@@ -553,8 +556,8 @@ async function getDueToday(): Promise<Reminder[]> {
       set todayEnd to todayStart + (24 * 60 * 60)
       set matchCount to 0
       repeat with theList in lists
-        set allReminders to reminders whose completed is false in theList
-        repeat with r in allReminders
+        repeat with r in (reminders of theList)
+          if completed of r is false then
           set rDueDate to due date of r
           if rDueDate is not missing value then
             if rDueDate ≥ todayStart and rDueDate < todayEnd then
@@ -587,7 +590,9 @@ async function getDueToday(): Promise<Reminder[]> {
               set matchCount to matchCount + 1
             end if
           end if
+          end if
         end repeat
+        if matchCount >= 100 then exit repeat
       end repeat
       set output to output & "]"
       return output
@@ -619,8 +624,8 @@ async function getOverdue(): Promise<Reminder[]> {
       set rightNow to current date
       set matchCount to 0
       repeat with theList in lists
-        set allReminders to reminders whose completed is false in theList
-        repeat with r in allReminders
+        repeat with r in (reminders of theList)
+          if completed of r is false then
           set rDueDate to due date of r
           if rDueDate is not missing value then
             if rDueDate < rightNow then
@@ -653,7 +658,9 @@ async function getOverdue(): Promise<Reminder[]> {
               set matchCount to matchCount + 1
             end if
           end if
+          end if
         end repeat
+        if matchCount >= 100 then exit repeat
       end repeat
       set output to output & "]"
       return output
@@ -686,8 +693,8 @@ async function getUpcoming(days: number = 7): Promise<Reminder[]> {
       set futureDate to rightNow + (${days} * 24 * 60 * 60)
       set matchCount to 0
       repeat with theList in lists
-        set allReminders to reminders whose completed is false in theList
-        repeat with r in allReminders
+        repeat with r in (reminders of theList)
+          if completed of r is false then
           set rDueDate to due date of r
           if rDueDate is not missing value then
             if rDueDate ≥ rightNow and rDueDate ≤ futureDate then
@@ -720,7 +727,9 @@ async function getUpcoming(days: number = 7): Promise<Reminder[]> {
               set matchCount to matchCount + 1
             end if
           end if
+          end if
         end repeat
+        if matchCount >= 100 then exit repeat
       end repeat
       set output to output & "]"
       return output
@@ -872,8 +881,8 @@ async function getFlagged(): Promise<Reminder[]> {
       set output to "["
       set matchCount to 0
       repeat with theList in lists
-        set allReminders to reminders whose flagged is true and completed is false in theList
-        repeat with r in allReminders
+        repeat with r in (reminders of theList)
+          if flagged of r is true and completed of r is false then
           set rId to id of r
           set rName to name of r
           set rBody to body of r
@@ -910,7 +919,9 @@ async function getFlagged(): Promise<Reminder[]> {
           set output to output & "\\"creationDate\\":\\"" & (rCreation as «class isot» as string) & "\\","
           set output to output & "\\"modificationDate\\":\\"" & (rMod as «class isot» as string) & "\\"}"
           set matchCount to matchCount + 1
+          end if
         end repeat
+        if matchCount >= 100 then exit repeat
       end repeat
       set output to output & "]"
       return output
