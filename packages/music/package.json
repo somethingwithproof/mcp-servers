@@ -32,7 +32,7 @@
   "author": "Thomas Vincent",
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.27.1"
+    "@modelcontextprotocol/sdk": "^1.29.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
