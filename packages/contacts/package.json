@@ -57,5 +57,12 @@
       "eslint --fix",
       "prettier --write"
     ]
+  },
+  "overrides": {
+    "punycode": "npm:punycode.js@^2.3.1",
+    "sourcemap-codec": "npm:@jridgewell/sourcemap-codec@^1.5.0",
+    "domexception": "npm:@rslint/domexception@^4.0.0",
+    "w3c-hr-time": "npm:@rslint/w3c-hr-time@^1.0.2",
+    "abab": "npm:@alloc/abab@^2.0.6"
   }
 }
