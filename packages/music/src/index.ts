@@ -31,7 +31,7 @@ function runAppleScript(script: string): string {
     }).trim();
   } catch (error: unknown) {
     const err = error as Error & { stderr?: string };
-    throw new Error(`AppleScript error: ${err.stderr || err.message}`);
+    throw new Error(`AppleScript error: ${err.stderr || err.message}`, { cause: err });
   }
 }
 
@@ -45,7 +45,7 @@ function runAppleScriptMulti(script: string): string {
     }).trim();
   } catch (error: unknown) {
     const err = error as Error & { stderr?: string };
-    throw new Error(`AppleScript error: ${err.stderr || err.message}`);
+    throw new Error(`AppleScript error: ${err.stderr || err.message}`, { cause: err });
   }
 }
 

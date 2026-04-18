@@ -37,7 +37,7 @@ describe('Music MCP Server E2E Tests', () => {
       ).trim();
     } catch (error: unknown) {
       const err = error as Error & { stderr?: string };
-      throw new Error(`AppleScript error: ${err.stderr || err.message}`);
+      throw new Error(`AppleScript error: ${err.stderr || err.message}`, { cause: err });
     }
   }
 
@@ -53,7 +53,7 @@ describe('Music MCP Server E2E Tests', () => {
       ).trim();
     } catch (error: unknown) {
       const err = error as Error & { stderr?: string };
-      throw new Error(`AppleScript error: ${err.stderr || err.message}`);
+      throw new Error(`AppleScript error: ${err.stderr || err.message}`, { cause: err });
     }
   }
 
