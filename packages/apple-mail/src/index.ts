@@ -41,7 +41,7 @@ APPLESCRIPT_EOF`);
     return result;
   } catch (error: unknown) {
     const err = error as Error & { stderr?: string; stdout?: string };
-    throw new Error(`AppleScript error: ${err.stderr || err.message}`);
+    throw new Error(`AppleScript error: ${err.stderr || err.message}`, { cause: err });
   }
 }
 
