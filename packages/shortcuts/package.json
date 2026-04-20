@@ -1,0 +1,42 @@
+{
+  "name": "shortcuts-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Apple Shortcuts on macOS - run any shortcut via the Model Context Protocol",
+  "main": "dist/index.js",
+  "type": "module",
+  "bin": {
+    "shortcuts-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch",
+    "prepare": "npm run build",
+    "test": "echo \"No tests configured\" && exit 0"
+  },
+  "keywords": [
+    "mcp",
+    "shortcuts",
+    "apple-shortcuts",
+    "automation",
+    "macos",
+    "model-context-protocol",
+    "ai",
+    "claude"
+  ],
+  "author": "Thomas Vincent",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^6.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist"
+  ]
+}
