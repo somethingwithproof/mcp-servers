@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: uv sync
+      - name: Lint with ruff
+        run: uv run ruff check .
+      - name: Check formatting with ruff
+        run: uv run ruff format --check .
+      - name: Type check with mypy
+        run: uv run mypy src/
+      - name: Run tests with coverage
+        run: uv run pytest --cov --cov-report=term-missing
