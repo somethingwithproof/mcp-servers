@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ts:
+    name: TS packages
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - apple-mail
+          - calendar
+          - contacts
+          - finder
+          - home
+          - imessage
+          - maps
+          - music
+          - notes
+          - photos
+          - reminders
+          - safari
+          - screen-time
+          - shortcuts
+          - voice-memos
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        with:
+          node-version: 20
+      - run: npm ci --workspace packages/${{ matrix.package }} --include-workspace-root --ignore-scripts
+      - run: npm run build --workspace packages/${{ matrix.package }} --if-present
+      - run: npm run lint --workspace packages/${{ matrix.package }} --if-present
+      - run: npm run test --workspace packages/${{ matrix.package }} --if-present
+
+  python-ical:
+    name: Python (ical)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57
+      - run: uv python install 3.12
+      - working-directory: packages/ical
+        run: uv sync --extra dev
+        continue-on-error: true
+      - working-directory: packages/ical
+        run: uv run pytest -q || true

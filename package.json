@@ -1,0 +1,26 @@
+{
+  "name": "@somethingwithproof/mcp-servers",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Monorepo of Model Context Protocol servers for macOS apps",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "overrides": {
+    "punycode": "npm:punycode.js@^2.3.1"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
