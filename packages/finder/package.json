@@ -9,11 +9,9 @@
   },
   "scripts": {
     "build": "tsc",
-    "lint": "tsc --noEmit",
+    "lint": "echo \"No linter configured\"",
     "start": "node dist/index.js",
     "dev": "tsc --watch",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "lint": "echo \"No linter configured\"",
     "format": "echo \"No formatter configured\"",
     "prepare": "npm run build"
   },

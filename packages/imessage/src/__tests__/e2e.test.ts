@@ -944,7 +944,7 @@ describe('iMessage MCP Server', () => {
       const handleToolCall = (name: string, _args: Record<string, unknown>) => {
         const knownTools = ['imessage_get_recent', 'imessage_send'];
         if (!knownTools.includes(name)) {
-          throw new Error(`Unknown tool: ${name}`);
+          throw new Error(`Unknown tool: ${name}`, { cause: error });
         }
       };
 

@@ -39,7 +39,7 @@ async function runAppleScript(script: string): Promise<string> {
     return stdout.trim();
   } catch (error: unknown) {
     const err = error as Error & { stderr?: string };
-    throw new Error(`AppleScript error: ${err.stderr ?? err.message}`);
+    throw new Error(`AppleScript error: ${err.stderr ?? err.message}`, { cause: error });
   } finally {
     await unlink(tmp).catch(() => undefined);
   }
@@ -56,7 +56,7 @@ async function runShortcut(name: string, input?: string): Promise<string> {
     return stdout.trim();
   } catch (error: unknown) {
     const err = error as Error & { stderr?: string };
-    throw new Error(`Shortcut error: ${err.stderr ?? err.message}`);
+    throw new Error(`Shortcut error: ${err.stderr ?? err.message}`, { cause: error });
   }
 }
 

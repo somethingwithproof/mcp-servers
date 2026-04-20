@@ -1109,7 +1109,7 @@ async function handleToolCall(name: string, args: Record<string, unknown>): Prom
     }
 
     default:
-      throw new Error(`Unknown tool: ${name}`);
+      throw new Error(`Unknown tool: ${name}`, { cause: error });
   }
 }
 

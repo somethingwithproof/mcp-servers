@@ -1884,7 +1884,7 @@ async function handleToolCall(
     }
 
     default:
-      throw new Error(`Unknown tool: ${name}`);
+      throw new Error(`Unknown tool: ${name}`, { cause: error });
   }
 }
 
