@@ -37,7 +37,8 @@ async function runAppleScript(script: string): Promise<string> {
     const msg = errorMessage(err);
     if (msg.includes('Not authorized')) {
       throw new Error(
-        'Contacts access denied. Grant permission in System Settings > Privacy & Security > Contacts'
+        'Contacts access denied. Grant permission in System Settings > Privacy & Security > Contacts',
+        { cause: err }
       );
     }
     throw err;

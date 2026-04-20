@@ -39,7 +39,8 @@ async function runAppleScript(script: string): Promise<string> {
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes('Not authorized')) {
       throw new Error(
-        'Calendar access denied. Grant permission in System Settings > Privacy & Security > Calendars'
+        'Calendar access denied. Grant permission in System Settings > Privacy & Security > Calendars',
+        { cause: err }
       );
     }
     throw err;
@@ -1109,7 +1110,7 @@ async function handleToolCall(name: string, args: Record<string, unknown>): Prom
     }
 
     default:
-      throw new Error(`Unknown tool: ${name}`, { cause: error });
+      throw new Error(`Unknown tool: ${name}`);
   }
 }
 

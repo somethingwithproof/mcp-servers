@@ -657,7 +657,7 @@ describe('Calendar MCP Server', () => {
         const handleToolCall = (name: string): boolean => {
           const knownTools = new Set(EXPECTED_TOOLS);
           if (!knownTools.has(name as (typeof EXPECTED_TOOLS)[number])) {
-            throw new Error(`Unknown tool: ${name}`, { cause: error });
+            throw new Error(`Unknown tool: ${name}`);
           }
           return true;
         };
