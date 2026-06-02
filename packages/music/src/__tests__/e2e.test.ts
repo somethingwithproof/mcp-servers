@@ -18,7 +18,7 @@ vi.mock('child_process', () => ({
 const mockedExecSync = vi.mocked(child_process.execSync);
 
 function escapeAppleScript(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
 }
 
 describe('Music MCP Server E2E Tests', () => {
@@ -50,7 +50,7 @@ describe('Music MCP Server E2E Tests', () => {
   // Helper to run multi-line AppleScript
   function runAppleScriptMulti(script: string): string {
     try {
-      const escapedScript = script.replace(/'/g, "'\"'\"'");
+      const escapedScript = script.replaceAll("'", "'\"'\"'");
       return (
         child_process.execSync(`osascript -e '${escapedScript}'`, {
           encoding: 'utf-8',

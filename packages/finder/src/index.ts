@@ -472,10 +472,10 @@ interface ContentSearchResult {
 
 function escapeShellDoubleQuoted(value: string): string {
   return value
-    .replace(/\\/g, "\\\\")
-    .replace(/"/g, '\\"')
-    .replace(/\$/g, "\\$")
-    .replace(/`/g, "\\`");
+    .replaceAll("\\", "\\\\")
+    .replaceAll('"', '\\"')
+    .replaceAll("$", "\\$")
+    .replaceAll("`", "\\`");
 }
 
 async function searchFileContents(

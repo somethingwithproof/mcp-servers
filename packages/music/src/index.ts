@@ -21,7 +21,7 @@ const server = new Server(
 );
 
 function escapeAppleScript(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
 }
 
 // Helper function to run AppleScript
@@ -44,7 +44,7 @@ function runAppleScript(script: string): string {
 // Helper to run multi-line AppleScript
 function runAppleScriptMulti(script: string): string {
   try {
-    const escapedScript = script.replace(/'/g, "'\"'\"'");
+    const escapedScript = script.replaceAll("'", "'\"'\"'");
     return execSync(`osascript -e '${escapedScript}'`, {
       encoding: 'utf-8',
       maxBuffer: 50 * 1024 * 1024,

@@ -17,7 +17,7 @@ const execAsync = promisify(exec);
 // ============================================================================
 
 function escapeAppleScript(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
 }
 
 async function runAppleScript(script: string): Promise<string> {

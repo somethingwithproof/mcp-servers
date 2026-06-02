@@ -20,11 +20,11 @@ const server = new Server(
 );
 
 function escapeAppleScript(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
 }
 
 function escapeShellSingleQuoted(value: string): string {
-  return value.replace(/'/g, "'\"'\"'");
+  return value.replaceAll("'", "'\"'\"'");
 }
 
 // Helper function to run AppleScript

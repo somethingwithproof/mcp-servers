@@ -29,7 +29,7 @@ function runAppleScript(script: string): string {
 
 function runAppleScriptMulti(script: string): string {
   try {
-    const escapedScript = script.replace(/'/g, "'\"'\"'");
+    const escapedScript = script.replaceAll("'", "'\"'\"'");
     return mockExecSync(`osascript -e '${escapedScript}'`, {
       encoding: 'utf-8',
       maxBuffer: 50 * 1024 * 1024,

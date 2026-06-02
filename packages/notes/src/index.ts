@@ -17,7 +17,7 @@ const execAsync = promisify(exec);
 // ============================================================================
 
 function escapeAppleScript(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
 }
 
 async function runAppleScript(script: string): Promise<string> {
@@ -301,7 +301,7 @@ async function createNote(options: {
   const { name, body, folder, account } = options;
 
   const escapedName = escapeAppleScript(name);
-  const escapedBody = escapeAppleScript(body).replace(/\n/g, "<br>");
+  const escapedBody = escapeAppleScript(body).replaceAll("\n", "<br>");
 
   let targetFolder = "default folder";
   if (folder && account) {
@@ -337,7 +337,7 @@ async function updateNote(
     updateLines.push(`set name of theNote to "${escapeAppleScript(name)}"`);
   }
   if (body !== undefined) {
-    const escapedBody = escapeAppleScript(body).replace(/\n/g, "<br>");
+    const escapedBody = escapeAppleScript(body).replaceAll("\n", "<br>");
     updateLines.push(`set body of theNote to "${escapedBody}"`);
   }
 
@@ -381,7 +381,7 @@ async function appendToNote(
   noteId: string,
   content: string
 ): Promise<{ success: boolean; error?: string }> {
-  const escapedContent = escapeAppleScript(content).replace(/\n/g, "<br>");
+  const escapedContent = escapeAppleScript(content).replaceAll("\n", "<br>");
 
   const script = `
     tell application "Notes"

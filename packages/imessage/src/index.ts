@@ -17,15 +17,15 @@ import * as https from 'https';
 const execAsync = promisify(exec);
 
 function escapeAppleScript(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
 }
 
 function escapeShellDoubleQuoted(value: string): string {
   return value
-    .replace(/\\/g, '\\\\')
-    .replace(/"/g, '\\"')
-    .replace(/\$/g, '\\$')
-    .replace(/`/g, '\\`');
+    .replaceAll('\\', '\\\\')
+    .replaceAll('"', '\\"')
+    .replaceAll('$', '\\$')
+    .replaceAll('`', '\\`');
 }
 
 // ============================================================================
@@ -189,7 +189,7 @@ async function getContactName(identifier: string): Promise<string | null> {
       end tell
     `;
 
-    const escapedScript = script.replace(/'/g, "'\\''");
+    const escapedScript = script.replaceAll("'", "'\\''");
     const result = await execAsync(`osascript -e '${escapedScript}'`, {
       timeout: 5000,
     });
