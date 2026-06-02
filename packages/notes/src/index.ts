@@ -16,6 +16,10 @@ const execAsync = promisify(exec);
 // AppleScript Helpers
 // ============================================================================
 
+function escapeAppleScript(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
 async function runAppleScript(script: string): Promise<string> {
   try {
     const escaped = script.replace(/'/g, "'\\''");
@@ -173,9 +177,9 @@ async function getNotes(options: {
 
   let targetFolder = "default folder";
   if (folder && account) {
-    targetFolder = `folder "${folder.replace(/"/g, '\\"')}" of account "${account.replace(/"/g, '\\"')}"`;
+    targetFolder = `folder "${escapeAppleScript(folder)}" of account "${escapeAppleScript(account)}"`;
   } else if (folder) {
-    targetFolder = `folder "${folder.replace(/"/g, '\\"')}"`;
+    targetFolder = `folder "${escapeAppleScript(folder)}"`;
   }
 
   const script = `
@@ -239,7 +243,7 @@ async function getNote(noteId: string): Promise<Note | null> {
   const script = `
     tell application "Notes"
       try
-        set n to note id "${noteId.replace(/"/g, '\\"')}"
+        set n to note id "${escapeAppleScript(noteId)}"
         set nId to id of n
         set nName to name of n
         set nBody to body of n
@@ -296,14 +300,14 @@ async function createNote(options: {
 }): Promise<{ success: boolean; id?: string; error?: string }> {
   const { name, body, folder, account } = options;
 
-  const escapedName = name.replace(/"/g, '\\"');
-  const escapedBody = body.replace(/"/g, '\\"').replace(/\n/g, "<br>");
+  const escapedName = escapeAppleScript(name);
+  const escapedBody = escapeAppleScript(body).replace(/\n/g, "<br>");
 
   let targetFolder = "default folder";
   if (folder && account) {
-    targetFolder = `folder "${folder.replace(/"/g, '\\"')}" of account "${account.replace(/"/g, '\\"')}"`;
+    targetFolder = `folder "${escapeAppleScript(folder)}" of account "${escapeAppleScript(account)}"`;
   } else if (folder) {
-    targetFolder = `folder "${folder.replace(/"/g, '\\"')}"`;
+    targetFolder = `folder "${escapeAppleScript(folder)}"`;
   }
 
   const script = `
@@ -330,10 +334,10 @@ async function updateNote(
   let updateLines: string[] = [];
 
   if (name !== undefined) {
-    updateLines.push(`set name of theNote to "${name.replace(/"/g, '\\"')}"`);
+    updateLines.push(`set name of theNote to "${escapeAppleScript(name)}"`);
   }
   if (body !== undefined) {
-    const escapedBody = body.replace(/"/g, '\\"').replace(/\n/g, "<br>");
+    const escapedBody = escapeAppleScript(body).replace(/\n/g, "<br>");
     updateLines.push(`set body of theNote to "${escapedBody}"`);
   }
 
@@ -343,7 +347,7 @@ async function updateNote(
 
   const script = `
     tell application "Notes"
-      set theNote to note id "${noteId.replace(/"/g, '\\"')}"
+      set theNote to note id "${escapeAppleScript(noteId)}"
       ${updateLines.join("\n      ")}
       return "done"
     end tell
@@ -360,7 +364,7 @@ async function updateNote(
 async function deleteNote(noteId: string): Promise<{ success: boolean; error?: string }> {
   const script = `
     tell application "Notes"
-      delete note id "${noteId.replace(/"/g, '\\"')}"
+      delete note id "${escapeAppleScript(noteId)}"
       return "done"
     end tell
   `;
@@ -377,11 +381,11 @@ async function appendToNote(
   noteId: string,
   content: string
 ): Promise<{ success: boolean; error?: string }> {
-  const escapedContent = content.replace(/"/g, '\\"').replace(/\n/g, "<br>");
+  const escapedContent = escapeAppleScript(content).replace(/\n/g, "<br>");
 
   const script = `
     tell application "Notes"
-      set theNote to note id "${noteId.replace(/"/g, '\\"')}"
+      set theNote to note id "${escapeAppleScript(noteId)}"
       set currentBody to body of theNote
       set body of theNote to currentBody & "<br>${escapedContent}"
       return "done"
@@ -405,7 +409,7 @@ async function searchNotes(
   options: { folder?: string; account?: string; limit?: number } = {}
 ): Promise<Note[]> {
   const { folder, account, limit = 50 } = options;
-  const escapedQuery = query.toLowerCase().replace(/"/g, '\\"');
+  const escapedQuery = escapeAppleScript(query.toLowerCase());
 
   const script = `
     tell application "Notes"
@@ -414,9 +418,9 @@ async function searchNotes(
       set matchCount to 0
 
       repeat with acc in accounts
-        ${account ? `if name of acc is "${account.replace(/"/g, '\\"')}" then` : ""}
+        ${account ? `if name of acc is "${escapeAppleScript(account)}" then` : ""}
         repeat with f in folders of acc
-          ${folder ? `if name of f is "${folder.replace(/"/g, '\\"')}" then` : ""}
+          ${folder ? `if name of f is "${escapeAppleScript(folder)}" then` : ""}
           repeat with n in notes of f
             if matchCount < ${limit} then
               set nName to name of n
@@ -495,9 +499,9 @@ async function searchNotes(
 // ============================================================================
 
 async function createFolder(name: string, account?: string): Promise<{ success: boolean; error?: string }> {
-  const escapedName = name.replace(/"/g, '\\"');
+  const escapedName = escapeAppleScript(name);
   const accountTarget = account
-    ? `account "${account.replace(/"/g, '\\"')}"`
+    ? `account "${escapeAppleScript(account)}"`
     : "default account";
 
   const script = `
@@ -537,7 +541,7 @@ async function openNotes(): Promise<{ success: boolean; error?: string }> {
 async function openNote(noteId: string): Promise<{ success: boolean; error?: string }> {
   const script = `
     tell application "Notes"
-      set theNote to note id "${noteId.replace(/"/g, '\\"')}"
+      set theNote to note id "${escapeAppleScript(noteId)}"
       show theNote
       activate
     end tell
@@ -553,12 +557,12 @@ async function openNote(noteId: string): Promise<{ success: boolean; error?: str
 
 async function openFolder(folderName: string, account?: string): Promise<{ success: boolean; error?: string }> {
   const accountTarget = account
-    ? `account "${account.replace(/"/g, '\\"')}"`
+    ? `account "${escapeAppleScript(account)}"`
     : "first account";
 
   const script = `
     tell application "Notes"
-      set theFolder to folder "${folderName.replace(/"/g, '\\"')}" of ${accountTarget}
+      set theFolder to folder "${escapeAppleScript(folderName)}" of ${accountTarget}
       show theFolder
       activate
     end tell

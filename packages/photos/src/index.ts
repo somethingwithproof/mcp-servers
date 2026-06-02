@@ -19,12 +19,20 @@ const server = new Server(
   }
 );
 
+function escapeAppleScript(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function escapeShellSingleQuoted(value: string): string {
+  return value.replace(/'/g, "'\"'\"'");
+}
+
 // Helper function to run AppleScript
 // Note: Using execSync with osascript is required for AppleScript execution
 // All user input is properly escaped before being included in scripts
 function runAppleScript(script: string): string {
   try {
-    return execSync(`osascript -e '${script.replace(/'/g, "'\"'\"'")}'`, {
+    return execSync(`osascript -e '${escapeShellSingleQuoted(script)}'`, {
       encoding: 'utf-8',
       maxBuffer: 50 * 1024 * 1024,
     }).trim();
@@ -37,8 +45,8 @@ function runAppleScript(script: string): string {
 // Helper to run multi-line AppleScript
 function runAppleScriptMulti(script: string): string {
   try {
-    const escapedScript = script.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    return execSync(`osascript -e "${escapedScript}"`, {
+    const escapedScript = escapeShellSingleQuoted(script);
+    return execSync(`osascript -e '${escapedScript}'`, {
       encoding: 'utf-8',
       maxBuffer: 50 * 1024 * 1024,
     }).trim();
@@ -345,7 +353,7 @@ end tell`;
 
       case 'photos_get_album_photos': {
         const { album, limit = 50 } = args as { album: string; limit?: number };
-        const safeAlbum = album.replace(/"/g, '\\"');
+        const safeAlbum = escapeAppleScript(album);
         const script = `
 tell application "Photos"
   try
@@ -371,7 +379,7 @@ end tell`;
       }
 
       case 'photos_create_album': {
-        const albumName = (args as { name: string }).name.replace(/"/g, '\\"');
+        const albumName = escapeAppleScript((args as { name: string }).name);
         const script = `
 tell application "Photos"
   try
@@ -386,7 +394,7 @@ end tell`;
       }
 
       case 'photos_delete_album': {
-        const album = (args as { album: string }).album.replace(/"/g, '\\"');
+        const album = escapeAppleScript((args as { album: string }).album);
         const script = `
 tell application "Photos"
   try
@@ -463,7 +471,7 @@ end tell`;
       }
 
       case 'photos_get_photo_info': {
-        const photoId = (args as { photoId: string }).photoId.replace(/"/g, '\\"');
+        const photoId = escapeAppleScript((args as { photoId: string }).photoId);
         const script = `
 tell application "Photos"
   try
@@ -495,7 +503,7 @@ end tell`;
       // Search
       case 'photos_search': {
         const { query, limit = 20 } = args as { query: string; limit?: number };
-        const safeQuery = query.toLowerCase().replace(/"/g, '\\"');
+        const safeQuery = escapeAppleScript(query.toLowerCase());
         const script = `
 tell application "Photos"
   set results to ""
@@ -560,11 +568,11 @@ end tell`;
           destination = DEFAULT_EXPORT_DIR,
           limit = 10,
         } = args as { album?: string; destination?: string; limit?: number };
-        const safeDest = destination.replace(/"/g, '\\"');
-        const safeAlbum = album ? album.replace(/"/g, '\\"') : null;
+        const safeDest = escapeAppleScript(destination);
+        const safeAlbum = album ? escapeAppleScript(album) : null;
 
         // Ensure destination exists using execSync with proper escaping
-        execSync(`mkdir -p '${destination.replace(/'/g, "'\"'\"'")}'`);
+        execSync(`mkdir -p '${escapeShellSingleQuoted(destination)}'`);
 
         const script = safeAlbum
           ? `
@@ -610,11 +618,11 @@ end tell`;
           photoId: string;
           destination?: string;
         };
-        const safeDest = destination.replace(/"/g, '\\"');
-        const safeId = photoId.replace(/"/g, '\\"');
+        const safeDest = escapeAppleScript(destination);
+        const safeId = escapeAppleScript(photoId);
 
         // Ensure destination exists
-        execSync(`mkdir -p '${destination.replace(/'/g, "'\"'\"'")}'`);
+        execSync(`mkdir -p '${escapeShellSingleQuoted(destination)}'`);
 
         const script = `
 tell application "Photos"
@@ -633,7 +641,7 @@ end tell`;
       // Favorites
       case 'photos_set_favorite': {
         const { photoId, favorite } = args as { photoId: string; favorite: boolean };
-        const safeId = photoId.replace(/"/g, '\\"');
+        const safeId = escapeAppleScript(photoId);
         const script = `
 tell application "Photos"
   try
@@ -673,7 +681,7 @@ end tell`;
       }
 
       case 'photos_open_album': {
-        const album = (args as { album: string }).album.replace(/"/g, '\\"');
+        const album = escapeAppleScript((args as { album: string }).album);
         const script = `
 tell application "Photos"
   activate
@@ -691,8 +699,8 @@ end tell`;
       // Import
       case 'photos_import': {
         const { path, album } = args as { path: string; album?: string };
-        const safePath = path.replace(/"/g, '\\"');
-        const safeAlbum = album ? album.replace(/"/g, '\\"') : null;
+        const safePath = escapeAppleScript(path);
+        const safeAlbum = album ? escapeAppleScript(album) : null;
 
         const script = safeAlbum
           ? `

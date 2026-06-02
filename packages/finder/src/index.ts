@@ -470,6 +470,14 @@ interface ContentSearchResult {
   extension: string;
 }
 
+function escapeShellDoubleQuoted(value: string): string {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/\$/g, "\\$")
+    .replace(/`/g, "\\`");
+}
+
 async function searchFileContents(
   query: string,
   options: {
@@ -498,13 +506,16 @@ async function searchFileContents(
   // Build include patterns for extensions
   let includeArg = "";
   if (extensions.length > 0) {
-    includeArg = extensions.map((ext) => `--include="*.${ext}"`).join(" ");
+    includeArg = extensions
+      .map((ext) => `--include="*.${escapeShellDoubleQuoted(ext)}"`)
+      .join(" ");
   }
 
-  // Escape query for shell
-  const escapedQuery = query.replace(/"/g, '\\"').replace(/\$/g, "\\$");
+  // Escape double-quoted shell fragments.
+  const escapedQuery = escapeShellDoubleQuoted(query);
+  const escapedPath = escapeShellDoubleQuoted(resolved);
 
-  const cmd = `grep ${grepFlags} ${includeArg} "${escapedQuery}" "${resolved}" 2>/dev/null | head -${limit * 2}`;
+  const cmd = `grep ${grepFlags} ${includeArg} "${escapedQuery}" "${escapedPath}" 2>/dev/null | head -${limit * 2}`;
 
   try {
     const result = await execAsync(cmd, {
@@ -561,8 +572,9 @@ async function searchInFile(
   if (!caseSensitive) grepFlags += "i";
   if (!regex) grepFlags += "F";
 
-  const escapedQuery = query.replace(/"/g, '\\"').replace(/\$/g, "\\$");
-  const cmd = `grep ${grepFlags} "${escapedQuery}" "${resolved}" 2>/dev/null | head -${limit}`;
+  const escapedQuery = escapeShellDoubleQuoted(query);
+  const escapedPath = escapeShellDoubleQuoted(resolved);
+  const cmd = `grep ${grepFlags} "${escapedQuery}" "${escapedPath}" 2>/dev/null | head -${limit}`;
 
   try {
     const result = await execAsync(cmd, {

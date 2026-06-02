@@ -16,6 +16,10 @@ const execAsync = promisify(exec);
 // AppleScript Helpers
 // ============================================================================
 
+function escapeAppleScript(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
 async function runAppleScript(script: string): Promise<string> {
   try {
     const escaped = script.replace(/'/g, "'\\''");
@@ -181,7 +185,7 @@ async function getReminders(
   const { completed, limit = 100 } = options;
 
   let listFilter = listName
-    ? `list "${listName.replace(/"/g, '\\"')}"`
+    ? `list "${escapeAppleScript(listName)}"`
     : "default list";
 
   let completedCondition: string;
@@ -277,10 +281,10 @@ async function createReminder(options: {
 }): Promise<{ success: boolean; id?: string; error?: string }> {
   const { name, body, list, dueDate, priority, url, flagged } = options;
 
-  const escapedName = name.replace(/"/g, '\\"');
-  const escapedBody = body?.replace(/"/g, '\\"') || "";
+  const escapedName = escapeAppleScript(name);
+  const escapedBody = body ? escapeAppleScript(body) : "";
   const listTarget = list
-    ? `list "${list.replace(/"/g, '\\"')}"`
+    ? `list "${escapeAppleScript(list)}"`
     : "default list";
 
   let dueDateLine = "";
@@ -327,7 +331,7 @@ async function completeReminder(
 ): Promise<{ success: boolean; error?: string }> {
   const script = `
     tell application "Reminders"
-      set theReminder to reminder id "${reminderId.replace(/"/g, '\\"')}"
+      set theReminder to reminder id "${escapeAppleScript(reminderId)}"
       set completed of theReminder to true
       return "done"
     end tell
@@ -346,7 +350,7 @@ async function uncompleteReminder(
 ): Promise<{ success: boolean; error?: string }> {
   const script = `
     tell application "Reminders"
-      set theReminder to reminder id "${reminderId.replace(/"/g, '\\"')}"
+      set theReminder to reminder id "${escapeAppleScript(reminderId)}"
       set completed of theReminder to false
       return "done"
     end tell
@@ -365,7 +369,7 @@ async function deleteReminder(
 ): Promise<{ success: boolean; error?: string }> {
   const script = `
     tell application "Reminders"
-      delete reminder id "${reminderId.replace(/"/g, '\\"')}"
+      delete reminder id "${escapeAppleScript(reminderId)}"
       return "done"
     end tell
   `;
@@ -393,10 +397,10 @@ async function updateReminder(
   let updateLines: string[] = [];
 
   if (name !== undefined) {
-    updateLines.push(`set name of theReminder to "${name.replace(/"/g, '\\"')}"`);
+    updateLines.push(`set name of theReminder to "${escapeAppleScript(name)}"`);
   }
   if (body !== undefined) {
-    updateLines.push(`set body of theReminder to "${body.replace(/"/g, '\\"')}"`);
+    updateLines.push(`set body of theReminder to "${escapeAppleScript(body)}"`);
   }
   if (dueDate === null) {
     updateLines.push(`set due date of theReminder to missing value`);
@@ -422,7 +426,7 @@ async function updateReminder(
 
   const script = `
     tell application "Reminders"
-      set theReminder to reminder id "${reminderId.replace(/"/g, '\\"')}"
+      set theReminder to reminder id "${escapeAppleScript(reminderId)}"
       ${updateLines.join("\n      ")}
       return "done"
     end tell
@@ -445,10 +449,10 @@ async function searchReminders(
   options: { list?: string; limit?: number } = {}
 ): Promise<Reminder[]> {
   const { list, limit = 50 } = options;
-  const escapedQuery = query.toLowerCase().replace(/"/g, '\\"');
+  const escapedQuery = escapeAppleScript(query.toLowerCase());
 
   let listFilter = list
-    ? `list "${list.replace(/"/g, '\\"')}"`
+    ? `list "${escapeAppleScript(list)}"`
     : "default list";
 
   // Get all reminders and filter by query
@@ -761,7 +765,7 @@ async function getUpcoming(days: number = 7): Promise<Reminder[]> {
 // ============================================================================
 
 async function createList(name: string): Promise<{ success: boolean; id?: string; error?: string }> {
-  const escapedName = name.replace(/"/g, '\\"');
+  const escapedName = escapeAppleScript(name);
 
   const script = `
     tell application "Reminders"
@@ -779,7 +783,7 @@ async function createList(name: string): Promise<{ success: boolean; id?: string
 }
 
 async function deleteList(listName: string): Promise<{ success: boolean; error?: string }> {
-  const escapedName = listName.replace(/"/g, '\\"');
+  const escapedName = escapeAppleScript(listName);
 
   const script = `
     tell application "Reminders"
@@ -966,7 +970,7 @@ async function openReminder(reminderId: string): Promise<{ success: boolean; err
 }
 
 async function openList(listName: string): Promise<{ success: boolean; error?: string }> {
-  const escapedName = listName.replace(/"/g, '\\"');
+  const escapedName = escapeAppleScript(listName);
 
   const script = `
     tell application "Reminders"
