@@ -108,7 +108,8 @@ async function queryMessagesDb(query: string): Promise<string> {
   } catch (error: any) {
     if (error.message?.includes('unable to open database')) {
       throw new Error(
-        'Cannot access Messages database. Please grant Full Disk Access permission to the terminal app in System Preferences > Security & Privacy > Privacy > Full Disk Access'
+        'Cannot access Messages database. Please grant Full Disk Access permission to the terminal app in System Preferences > Security & Privacy > Privacy > Full Disk Access',
+        { cause: error }
       );
     }
     throw error;
