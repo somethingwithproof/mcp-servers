@@ -515,7 +515,7 @@ async function searchFileContents(
   const escapedQuery = escapeShellDoubleQuoted(query);
   const escapedPath = escapeShellDoubleQuoted(resolved);
 
-  const cmd = `grep ${grepFlags} ${includeArg} "${escapedQuery}" "${escapedPath}" 2>/dev/null | head -${limit * 2}`;
+  const cmd = `grep ${grepFlags} ${includeArg} -e "${escapedQuery}" -- "${escapedPath}" 2>/dev/null | head -${limit * 2}`;
 
   try {
     const result = await execAsync(cmd, {
@@ -574,7 +574,7 @@ async function searchInFile(
 
   const escapedQuery = escapeShellDoubleQuoted(query);
   const escapedPath = escapeShellDoubleQuoted(resolved);
-  const cmd = `grep ${grepFlags} "${escapedQuery}" "${escapedPath}" 2>/dev/null | head -${limit}`;
+  const cmd = `grep ${grepFlags} -e "${escapedQuery}" -- "${escapedPath}" 2>/dev/null | head -${limit}`;
 
   try {
     const result = await execAsync(cmd, {
