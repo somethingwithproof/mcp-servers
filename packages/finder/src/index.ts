@@ -112,6 +112,7 @@ async function listDirectory(
   options: { showHidden?: boolean; limit?: number } = {}
 ): Promise<FileInfo[]> {
   const { showHidden = false, limit = 100 } = options;
+  const safeLimit = normalizeLimit(limit, 100);
   const resolved = expandPath(dirPath);
 
   const entries = await fs.readdir(resolved, { withFileTypes: true });
@@ -119,7 +120,7 @@ async function listDirectory(
 
   for (const entry of entries) {
     if (!showHidden && entry.name.startsWith(".")) continue;
-    if (results.length >= limit) break;
+    if (results.length >= safeLimit) break;
 
     const fullPath = path.join(resolved, entry.name);
     try {
@@ -229,7 +230,7 @@ async function getRecentFiles(limit: number = 20): Promise<SpotlightResult[]> {
     const results: SpotlightResult[] = [];
 
     for (const p of paths) {
-      if (results.length >= limit) break;
+      if (results.length >= safeLimit) break;
       // Skip hidden files and directories
       if (path.basename(p).startsWith(".")) continue;
 
@@ -545,7 +546,7 @@ async function searchFileContents(
     const seenPaths = new Set<string>();
 
     for (const line of lines) {
-      if (results.length >= limit) break;
+      if (results.length >= safeLimit) break;
 
       // Parse grep output: path:lineNumber:content
       const match = line.match(/^(.+?):(\d+):(.*)$/);
@@ -632,6 +633,7 @@ async function findDuplicates(
   options: { minSize?: number; extensions?: string[]; limit?: number } = {}
 ): Promise<DuplicateGroup[]> {
   const { minSize = 1024, extensions = [], limit = 20 } = options;
+  const safeLimit = normalizeLimit(limit, 20);
   const resolved = expandPath(scope);
 
   // Find files and get their sizes
@@ -670,7 +672,7 @@ async function findDuplicates(
     const duplicates: DuplicateGroup[] = [];
     for (const [size, paths] of sizeGroups) {
       if (paths.length < 2) continue;
-      if (duplicates.length >= limit) break;
+      if (duplicates.length >= safeLimit) break;
 
       const hashGroups: Map<string, string[]> = new Map();
       for (const p of paths) {
@@ -689,7 +691,7 @@ async function findDuplicates(
       for (const [hash, hashPaths] of hashGroups) {
         if (hashPaths.length >= 2) {
           duplicates.push({ size, hash, files: hashPaths });
-          if (duplicates.length >= limit) break;
+          if (duplicates.length >= safeLimit) break;
         }
       }
     }
