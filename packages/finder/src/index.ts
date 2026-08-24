@@ -13,6 +13,8 @@ import * as path from "path";
 import * as os from "os";
 import * as fs from "fs/promises";
 
+const MAX_LIMIT = 1000;
+
 const execAsync = promisify(exec);
 
 // ============================================================================
@@ -171,7 +173,8 @@ async function spotlightSearch(
 
   const scopeArg = scope ? `-onlyin "${expandPath(scope)}"` : "";
 
-  const cmd = `mdfind ${scopeArg} '${mdQuery}' | head -${limit}`;
+  const safeLimit = normalizeLimit(limit, 50);
+  const cmd = `mdfind ${scopeArg} '${mdQuery}' | head -${safeLimit}`;
 
   try {
     const result = await execAsync(cmd, {
@@ -213,7 +216,8 @@ async function spotlightSearch(
 // ============================================================================
 
 async function getRecentFiles(limit: number = 20): Promise<SpotlightResult[]> {
-  const cmd = `mdfind 'kMDItemFSContentChangeDate >= $time.today(-7)' -onlyin ~ | head -${limit * 2}`;
+  const safeLimit = normalizeLimit(limit, 20);
+  const cmd = `mdfind 'kMDItemFSContentChangeDate >= $time.today(-7)' -onlyin ~ | head -${safeLimit * 2}`;
 
   try {
     const result = await execAsync(cmd, {
@@ -337,7 +341,8 @@ async function removeFileTag(
 }
 
 async function findFilesByTag(tag: string, limit: number = 50): Promise<SpotlightResult[]> {
-  const cmd = `mdfind 'kMDItemUserTags == "${tag}"' | head -${limit}`;
+  const safeLimit = normalizeLimit(limit, 50);
+  const cmd = `mdfind 'kMDItemUserTags == "${tag}"' | head -${safeLimit}`;
 
   try {
     const result = await execAsync(cmd, {
@@ -470,6 +475,17 @@ interface ContentSearchResult {
   extension: string;
 }
 
+/**
+ * Coerce a caller-supplied limit to a positive integer before it reaches a
+ * shell command. The MCP boundary hands these over as JSON, so the declared
+ * `number` type is not a guarantee.
+ */
+function normalizeLimit(value: unknown, fallback: number): number {
+  const parsed = Math.floor(Number(value));
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return Math.min(parsed, MAX_LIMIT);
+}
+
 function escapeShellDoubleQuoted(value: string): string {
   return value
     .replaceAll("\\", "\\\\")
@@ -515,7 +531,8 @@ async function searchFileContents(
   const escapedQuery = escapeShellDoubleQuoted(query);
   const escapedPath = escapeShellDoubleQuoted(resolved);
 
-  const cmd = `grep ${grepFlags} ${includeArg} -e "${escapedQuery}" -- "${escapedPath}" 2>/dev/null | head -${limit * 2}`;
+  const safeLimit = normalizeLimit(limit, 50);
+  const cmd = `grep ${grepFlags} ${includeArg} -e "${escapedQuery}" -- "${escapedPath}" 2>/dev/null | head -${safeLimit * 2}`;
 
   try {
     const result = await execAsync(cmd, {
@@ -574,7 +591,8 @@ async function searchInFile(
 
   const escapedQuery = escapeShellDoubleQuoted(query);
   const escapedPath = escapeShellDoubleQuoted(resolved);
-  const cmd = `grep ${grepFlags} -e "${escapedQuery}" -- "${escapedPath}" 2>/dev/null | head -${limit}`;
+  const safeLimit = normalizeLimit(limit, 100);
+  const cmd = `grep ${grepFlags} -e "${escapedQuery}" -- "${escapedPath}" 2>/dev/null | head -${safeLimit}`;
 
   try {
     const result = await execAsync(cmd, {
