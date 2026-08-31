@@ -13,6 +13,8 @@ import * as path from "path";
 import * as os from "os";
 import * as fs from "fs/promises";
 
+const MAX_LIMIT = 1000;
+
 const execAsync = promisify(exec);
 
 // ============================================================================
@@ -110,6 +112,7 @@ async function listDirectory(
   options: { showHidden?: boolean; limit?: number } = {}
 ): Promise<FileInfo[]> {
   const { showHidden = false, limit = 100 } = options;
+  const safeLimit = normalizeLimit(limit, 100);
   const resolved = expandPath(dirPath);
 
   const entries = await fs.readdir(resolved, { withFileTypes: true });
@@ -117,7 +120,7 @@ async function listDirectory(
 
   for (const entry of entries) {
     if (!showHidden && entry.name.startsWith(".")) continue;
-    if (results.length >= limit) break;
+    if (results.length >= safeLimit) break;
 
     const fullPath = path.join(resolved, entry.name);
     try {
@@ -171,7 +174,8 @@ async function spotlightSearch(
 
   const scopeArg = scope ? `-onlyin "${expandPath(scope)}"` : "";
 
-  const cmd = `mdfind ${scopeArg} '${mdQuery}' | head -${limit}`;
+  const safeLimit = normalizeLimit(limit, 50);
+  const cmd = `mdfind ${scopeArg} '${mdQuery}' | head -${safeLimit}`;
 
   try {
     const result = await execAsync(cmd, {
@@ -213,7 +217,8 @@ async function spotlightSearch(
 // ============================================================================
 
 async function getRecentFiles(limit: number = 20): Promise<SpotlightResult[]> {
-  const cmd = `mdfind 'kMDItemFSContentChangeDate >= $time.today(-7)' -onlyin ~ | head -${limit * 2}`;
+  const safeLimit = normalizeLimit(limit, 20);
+  const cmd = `mdfind 'kMDItemFSContentChangeDate >= $time.today(-7)' -onlyin ~ | head -${safeLimit * 2}`;
 
   try {
     const result = await execAsync(cmd, {
@@ -225,7 +230,7 @@ async function getRecentFiles(limit: number = 20): Promise<SpotlightResult[]> {
     const results: SpotlightResult[] = [];
 
     for (const p of paths) {
-      if (results.length >= limit) break;
+      if (results.length >= safeLimit) break;
       // Skip hidden files and directories
       if (path.basename(p).startsWith(".")) continue;
 
@@ -337,7 +342,8 @@ async function removeFileTag(
 }
 
 async function findFilesByTag(tag: string, limit: number = 50): Promise<SpotlightResult[]> {
-  const cmd = `mdfind 'kMDItemUserTags == "${tag}"' | head -${limit}`;
+  const safeLimit = normalizeLimit(limit, 50);
+  const cmd = `mdfind 'kMDItemUserTags == "${tag}"' | head -${safeLimit}`;
 
   try {
     const result = await execAsync(cmd, {
@@ -470,6 +476,25 @@ interface ContentSearchResult {
   extension: string;
 }
 
+/**
+ * Coerce a caller-supplied limit to a positive integer before it reaches a
+ * shell command. The MCP boundary hands these over as JSON, so the declared
+ * `number` type is not a guarantee.
+ */
+function normalizeLimit(value: unknown, fallback: number): number {
+  const parsed = Math.floor(Number(value));
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return Math.min(parsed, MAX_LIMIT);
+}
+
+function escapeShellDoubleQuoted(value: string): string {
+  return value
+    .replaceAll("\\", "\\\\")
+    .replaceAll('"', '\\"')
+    .replaceAll("$", "\\$")
+    .replaceAll("`", "\\`");
+}
+
 async function searchFileContents(
   query: string,
   options: {
@@ -498,13 +523,17 @@ async function searchFileContents(
   // Build include patterns for extensions
   let includeArg = "";
   if (extensions.length > 0) {
-    includeArg = extensions.map((ext) => `--include="*.${ext}"`).join(" ");
+    includeArg = extensions
+      .map((ext) => `--include="*.${escapeShellDoubleQuoted(ext)}"`)
+      .join(" ");
   }
 
-  // Escape query for shell
-  const escapedQuery = query.replace(/"/g, '\\"').replace(/\$/g, "\\$");
+  // Escape double-quoted shell fragments.
+  const escapedQuery = escapeShellDoubleQuoted(query);
+  const escapedPath = escapeShellDoubleQuoted(resolved);
 
-  const cmd = `grep ${grepFlags} ${includeArg} "${escapedQuery}" "${resolved}" 2>/dev/null | head -${limit * 2}`;
+  const safeLimit = normalizeLimit(limit, 50);
+  const cmd = `grep ${grepFlags} ${includeArg} -e "${escapedQuery}" -- "${escapedPath}" 2>/dev/null | head -${safeLimit * 2}`;
 
   try {
     const result = await execAsync(cmd, {
@@ -517,7 +546,7 @@ async function searchFileContents(
     const seenPaths = new Set<string>();
 
     for (const line of lines) {
-      if (results.length >= limit) break;
+      if (results.length >= safeLimit) break;
 
       // Parse grep output: path:lineNumber:content
       const match = line.match(/^(.+?):(\d+):(.*)$/);
@@ -561,8 +590,10 @@ async function searchInFile(
   if (!caseSensitive) grepFlags += "i";
   if (!regex) grepFlags += "F";
 
-  const escapedQuery = query.replace(/"/g, '\\"').replace(/\$/g, "\\$");
-  const cmd = `grep ${grepFlags} "${escapedQuery}" "${resolved}" 2>/dev/null | head -${limit}`;
+  const escapedQuery = escapeShellDoubleQuoted(query);
+  const escapedPath = escapeShellDoubleQuoted(resolved);
+  const safeLimit = normalizeLimit(limit, 100);
+  const cmd = `grep ${grepFlags} -e "${escapedQuery}" -- "${escapedPath}" 2>/dev/null | head -${safeLimit}`;
 
   try {
     const result = await execAsync(cmd, {
@@ -602,6 +633,7 @@ async function findDuplicates(
   options: { minSize?: number; extensions?: string[]; limit?: number } = {}
 ): Promise<DuplicateGroup[]> {
   const { minSize = 1024, extensions = [], limit = 20 } = options;
+  const safeLimit = normalizeLimit(limit, 20);
   const resolved = expandPath(scope);
 
   // Find files and get their sizes
@@ -640,7 +672,7 @@ async function findDuplicates(
     const duplicates: DuplicateGroup[] = [];
     for (const [size, paths] of sizeGroups) {
       if (paths.length < 2) continue;
-      if (duplicates.length >= limit) break;
+      if (duplicates.length >= safeLimit) break;
 
       const hashGroups: Map<string, string[]> = new Map();
       for (const p of paths) {
@@ -659,7 +691,7 @@ async function findDuplicates(
       for (const [hash, hashPaths] of hashGroups) {
         if (hashPaths.length >= 2) {
           duplicates.push({ size, hash, files: hashPaths });
-          if (duplicates.length >= limit) break;
+          if (duplicates.length >= safeLimit) break;
         }
       }
     }

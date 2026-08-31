@@ -274,9 +274,9 @@ describe('Photos MCP Server E2E Tests', () => {
     };
 
     const runAppleScriptMulti = (script: string): string => {
-      const escapedScript = script.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      const escapedScript = script.replaceAll("'", "'\"'\"'");
       return (
-        mockedExecSync(`osascript -e "${escapedScript}"`, {
+        mockedExecSync(`osascript -e '${escapedScript}'`, {
           encoding: 'utf-8',
           maxBuffer: 50 * 1024 * 1024,
         }) as string

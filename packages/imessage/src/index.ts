@@ -16,6 +16,18 @@ import * as https from 'https';
 
 const execAsync = promisify(exec);
 
+function escapeAppleScript(value: string): string {
+  return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+}
+
+function escapeShellDoubleQuoted(value: string): string {
+  return value
+    .replaceAll('\\', '\\\\')
+    .replaceAll('"', '\\"')
+    .replaceAll('$', '\\$')
+    .replaceAll('`', '\\`');
+}
+
 // ============================================================================
 // Configuration
 // ============================================================================
@@ -101,7 +113,7 @@ function isEmail(identifier: string): boolean {
 async function queryMessagesDb(query: string): Promise<string> {
   try {
     const result = await execAsync(
-      `sqlite3 -json "${MESSAGES_DB_PATH}" "${query.replace(/"/g, '\\"')}"`,
+      `sqlite3 -json "${escapeShellDoubleQuoted(MESSAGES_DB_PATH)}" "${escapeShellDoubleQuoted(query)}"`,
       { maxBuffer: 50 * 1024 * 1024 }
     );
     return result.stdout;
@@ -155,7 +167,7 @@ async function getContactName(identifier: string): Promise<string | null> {
 
   try {
     // Use AppleScript to query Contacts app
-    const escapedId = identifier.replace(/"/g, '\\"').replace(/'/g, "'\\''");
+    const escapedId = escapeAppleScript(identifier);
 
     const script = `
       tell application "Contacts"
@@ -177,7 +189,8 @@ async function getContactName(identifier: string): Promise<string | null> {
       end tell
     `;
 
-    const result = await execAsync(`osascript -e '${script}'`, {
+    const escapedScript = script.replaceAll("'", "'\\''");
+    const result = await execAsync(`osascript -e '${escapedScript}'`, {
       timeout: 5000,
     });
     const name = result.stdout.trim();
@@ -1086,8 +1099,8 @@ async function sendMessage(
     recipient = validation.normalized;
   }
 
-  const escapedMessage = message.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-  const escapedRecipient = recipient.replace(/"/g, '\\"');
+  const escapedMessage = escapeAppleScript(message);
+  const escapedRecipient = escapeAppleScript(recipient);
 
   // Try iMessage first
   const imessageScript = `
@@ -1180,7 +1193,7 @@ async function openConversation(
     }
   }
 
-  const escapedRecipient = recipient.replace(/"/g, '\\"');
+  const escapedRecipient = escapeAppleScript(recipient);
 
   const script = `
     tell application "Messages"

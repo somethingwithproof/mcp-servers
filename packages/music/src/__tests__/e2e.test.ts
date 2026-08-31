@@ -17,6 +17,10 @@ vi.mock('child_process', () => ({
 
 const mockedExecSync = vi.mocked(child_process.execSync);
 
+function escapeAppleScript(value: string): string {
+  return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+}
+
 describe('Music MCP Server E2E Tests', () => {
   let server: Server;
   let client: Client;
@@ -46,9 +50,9 @@ describe('Music MCP Server E2E Tests', () => {
   // Helper to run multi-line AppleScript
   function runAppleScriptMulti(script: string): string {
     try {
-      const escapedScript = script.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      const escapedScript = script.replaceAll("'", "'\"'\"'");
       return (
-        child_process.execSync(`osascript -e "${escapedScript}"`, {
+        child_process.execSync(`osascript -e '${escapedScript}'`, {
           encoding: 'utf-8',
           maxBuffer: 50 * 1024 * 1024,
         }) as string
@@ -495,7 +499,7 @@ describe('Music MCP Server E2E Tests', () => {
               playlist: string;
               limit?: number;
             };
-            const safeName = playlist.replace(/"/g, '\\"');
+            const safeName = escapeAppleScript(playlist);
             const script = `tell application "Music"\ntry\nset thePlaylist to playlist "${safeName}"\nset trackList to ""\nset trackCount to 0\nrepeat with t in tracks of thePlaylist\nif trackCount < ${limit} then\nset trackList to trackList & name of t & " - " & artist of t & "\\n"\nset trackCount to trackCount + 1\nend if\nend repeat\nreturn trackList\non error\nreturn "Playlist not found: ${safeName}"\nend try\nend tell`;
             const result = runAppleScriptMulti(script);
             return { content: [{ type: 'text', text: result }] };
@@ -505,7 +509,7 @@ describe('Music MCP Server E2E Tests', () => {
               playlist: string;
               shuffle?: boolean;
             };
-            const safeName = playlist.replace(/"/g, '\\"');
+            const safeName = escapeAppleScript(playlist);
             const script = `tell application "Music"\ntry\nset thePlaylist to playlist "${safeName}"\n${shuffle ? 'set shuffle enabled to true\n' : ''}play thePlaylist\nreturn "Playing playlist: ${safeName}"\non error\nreturn "Playlist not found: ${safeName}"\nend try\nend tell`;
             const result = runAppleScriptMulti(script);
             return { content: [{ type: 'text', text: result }] };
@@ -520,7 +524,7 @@ describe('Music MCP Server E2E Tests', () => {
               searchType?: string;
               limit?: number;
             };
-            const safeQuery = query.replace(/"/g, '\\"');
+            const safeQuery = escapeAppleScript(query);
             if (
               searchType !== 'songs' &&
               searchType !== 'all' &&
@@ -538,8 +542,8 @@ describe('Music MCP Server E2E Tests', () => {
           }
           case 'music_play_song': {
             const { song, artist } = args as { song: string; artist?: string };
-            const safeSong = song.replace(/"/g, '\\"');
-            const safeArtist = artist ? artist.replace(/"/g, '\\"') : null;
+            const safeSong = escapeAppleScript(song);
+            const safeArtist = artist ? escapeAppleScript(artist) : null;
             const script = `tell application "Music"\ntry\n${safeArtist ? `set matchingTracks to (every track whose name contains "${safeSong}" and artist contains "${safeArtist}")` : `set matchingTracks to (every track whose name contains "${safeSong}")`}\nif (count of matchingTracks) > 0 then\nplay item 1 of matchingTracks\nreturn "Playing: " & name of item 1 of matchingTracks\nelse\nreturn "Song not found: ${safeSong}"\nend if\non error errMsg\nreturn "Error: " & errMsg\nend try\nend tell`;
             const result = runAppleScriptMulti(script);
             return { content: [{ type: 'text', text: result }] };
@@ -549,8 +553,8 @@ describe('Music MCP Server E2E Tests', () => {
               album: string;
               artist?: string;
             };
-            const safeAlbum = album.replace(/"/g, '\\"');
-            const safeArtist = artist ? artist.replace(/"/g, '\\"') : null;
+            const safeAlbum = escapeAppleScript(album);
+            const safeArtist = artist ? escapeAppleScript(artist) : null;
             const script = `tell application "Music"\ntry\n${safeArtist ? `set albumTracks to (every track whose album is "${safeAlbum}" and album artist contains "${safeArtist}")` : `set albumTracks to (every track whose album is "${safeAlbum}")`}\nif (count of albumTracks) > 0 then\nplay item 1 of albumTracks\nreturn "Playing album: ${safeAlbum}"\nelse\nreturn "Album not found: ${safeAlbum}"\nend if\non error errMsg\nreturn "Error: " & errMsg\nend try\nend tell`;
             const result = runAppleScriptMulti(script);
             return { content: [{ type: 'text', text: result }] };
@@ -560,15 +564,15 @@ describe('Music MCP Server E2E Tests', () => {
               artist: string;
               shuffle?: boolean;
             };
-            const safeArtist = artist.replace(/"/g, '\\"');
+            const safeArtist = escapeAppleScript(artist);
             const script = `tell application "Music"\ntry\nset artistTracks to (every track whose artist contains "${safeArtist}")\nif (count of artistTracks) > 0 then\n${shuffle ? 'set shuffle enabled to true\n' : ''}play item 1 of artistTracks\nreturn "Playing songs by: ${safeArtist}"\nelse\nreturn "No songs found by: ${safeArtist}"\nend if\non error errMsg\nreturn "Error: " & errMsg\nend try\nend tell`;
             const result = runAppleScriptMulti(script);
             return { content: [{ type: 'text', text: result }] };
           }
           case 'music_add_to_queue': {
             const { song, artist } = args as { song: string; artist?: string };
-            const safeSong = song.replace(/"/g, '\\"');
-            const safeArtist = artist ? artist.replace(/"/g, '\\"') : null;
+            const safeSong = escapeAppleScript(song);
+            const safeArtist = artist ? escapeAppleScript(artist) : null;
             const script = `tell application "Music"\ntry\n${safeArtist ? `set matchingTracks to (every track whose name contains "${safeSong}" and artist contains "${safeArtist}")` : `set matchingTracks to (every track whose name contains "${safeSong}")`}\nif (count of matchingTracks) > 0 then\nset t to item 1 of matchingTracks\nreturn "Found: " & name of t & " - " & artist of t\nelse\nreturn "Song not found: ${safeSong}"\nend if\non error errMsg\nreturn "Error: " & errMsg\nend try\nend tell`;
             const result = runAppleScriptMulti(script);
             return { content: [{ type: 'text', text: result }] };
@@ -1241,7 +1245,7 @@ describe('Music MCP Server E2E Tests', () => {
       });
 
       expect(mockedExecSync).toHaveBeenCalledWith(
-        expect.stringContaining('artist contains \\"Test Artist\\"'),
+        expect.stringContaining('artist contains "Test Artist"'),
         expect.any(Object)
       );
     });
@@ -1428,9 +1432,9 @@ describe('Music MCP Server E2E Tests', () => {
         arguments: { playlist: 'Test "Playlist"' },
       });
 
-      // The double quotes are escaped for shell escaping
+      // The embedded AppleScript string escapes double quotes.
       expect(mockedExecSync).toHaveBeenCalledWith(
-        expect.stringContaining('Test \\\\\\"Playlist\\\\\\"'),
+        expect.stringContaining('Test \\"Playlist\\"'),
         expect.any(Object)
       );
     });
@@ -1443,9 +1447,9 @@ describe('Music MCP Server E2E Tests', () => {
         arguments: { song: 'Test "Song"' },
       });
 
-      // The double quotes are escaped for shell escaping
+      // The embedded AppleScript string escapes double quotes.
       expect(mockedExecSync).toHaveBeenCalledWith(
-        expect.stringContaining('Test \\\\\\"Song\\\\\\"'),
+        expect.stringContaining('Test \\"Song\\"'),
         expect.any(Object)
       );
     });
@@ -1458,9 +1462,9 @@ describe('Music MCP Server E2E Tests', () => {
         arguments: { query: 'Test "Query"' },
       });
 
-      // The double quotes are escaped for shell escaping
+      // The embedded AppleScript string escapes double quotes.
       expect(mockedExecSync).toHaveBeenCalledWith(
-        expect.stringContaining('Test \\\\\\"Query\\\\\\"'),
+        expect.stringContaining('Test \\"Query\\"'),
         expect.any(Object)
       );
     });

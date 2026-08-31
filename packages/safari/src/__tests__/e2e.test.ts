@@ -10,6 +10,10 @@ vi.mock('child_process', () => ({
 
 // We need to test the handlers directly, so let's create test utilities
 
+function escapeAppleScript(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
 // AppleScript runner functions (mirroring the source code)
 function runAppleScript(script: string): string {
   try {
@@ -25,8 +29,8 @@ function runAppleScript(script: string): string {
 
 function runAppleScriptMulti(script: string): string {
   try {
-    const escapedScript = script.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    return mockExecSync(`osascript -e "${escapedScript}"`, {
+    const escapedScript = script.replaceAll("'", "'\"'\"'");
+    return mockExecSync(`osascript -e '${escapedScript}'`, {
       encoding: 'utf-8',
       maxBuffer: 50 * 1024 * 1024,
     }).trim();
@@ -422,7 +426,7 @@ end tell`;
           newTab = true,
           newWindow = false,
         } = args as { url: string; newTab?: boolean; newWindow?: boolean };
-        const safeUrl = url.replace(/"/g, '\\"');
+        const safeUrl = escapeAppleScript(url);
         let script: string;
         if (newWindow) {
           script = `
@@ -516,8 +520,8 @@ end tell`;
 
       case 'safari_search_tabs': {
         const query = (args as { query: string }).query
-          .toLowerCase()
-          .replace(/"/g, '\\"');
+          .toLowerCase();
+        const safeQuery = escapeAppleScript(query);
         const script = `
 tell application "Safari"
   set matchingTabs to ""
@@ -527,7 +531,7 @@ tell application "Safari"
     repeat with t in tabs of w
       set tabTitle to name of t
       set tabURL to URL of t
-      if tabTitle contains "${query}" or tabURL contains "${query}" then
+      if tabTitle contains "${safeQuery}" or tabURL contains "${safeQuery}" then
         set matchingTabs to matchingTabs & "Window " & windowNum & ", Tab " & tabNum & ":\\n"
         set matchingTabs to matchingTabs & "  Title: " & tabTitle & "\\n"
         set matchingTabs to matchingTabs & "  URL: " & tabURL & "\\n"
@@ -537,7 +541,7 @@ tell application "Safari"
     set windowNum to windowNum + 1
   end repeat
   if matchingTabs is "" then
-    return "No tabs found matching: ${query}"
+    return "No tabs found matching: ${safeQuery}"
   end if
   return matchingTabs
 end tell`;
@@ -609,7 +613,7 @@ end tell`;
           url?: string;
           private?: boolean;
         };
-        const safeUrl = url ? url.replace(/"/g, '\\"') : '';
+        const safeUrl = url ? escapeAppleScript(url) : '';
         let script: string;
         if (isPrivate) {
           script = `
@@ -685,7 +689,7 @@ end try`;
           title?: string;
           folder?: string;
         };
-        const safeUrl = url ? url.replace(/"/g, '\\"') : '';
+        const safeUrl = url ? escapeAppleScript(url) : '';
         const script = `
 tell application "Safari"
   activate
@@ -735,7 +739,7 @@ end try`;
 
       case 'safari_add_to_reading_list': {
         const { url } = args as { url?: string; title?: string };
-        const safeUrl = url ? url.replace(/"/g, '\\"') : '';
+        const safeUrl = url ? escapeAppleScript(url) : '';
         const script = `
 tell application "Safari"
   activate
@@ -797,10 +801,7 @@ end tell`;
 
       case 'safari_run_javascript': {
         const jsCode = (args as { script: string }).script;
-        const escapedJs = jsCode
-          .replace(/\\/g, '\\\\')
-          .replace(/"/g, '\\"')
-          .replace(/\n/g, '\\n');
+        const escapedJs = escapeAppleScript(jsCode).replace(/\n/g, '\\n');
         const script = `
 tell application "Safari"
   if (count of windows) > 0 then

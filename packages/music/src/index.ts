@@ -20,6 +20,10 @@ const server = new Server(
   }
 );
 
+function escapeAppleScript(value: string): string {
+  return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+}
+
 // Helper function to run AppleScript
 // Note: Using execSync with osascript is required for AppleScript execution
 // All user input is properly escaped before being included in scripts
@@ -40,8 +44,8 @@ function runAppleScript(script: string): string {
 // Helper to run multi-line AppleScript
 function runAppleScriptMulti(script: string): string {
   try {
-    const escapedScript = script.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    return execSync(`osascript -e "${escapedScript}"`, {
+    const escapedScript = script.replaceAll("'", "'\"'\"'");
+    return execSync(`osascript -e '${escapedScript}'`, {
       encoding: 'utf-8',
       maxBuffer: 50 * 1024 * 1024,
     }).trim();
@@ -588,7 +592,7 @@ end tell`;
           playlist: string;
           limit?: number;
         };
-        const safeName = playlist.replace(/"/g, '\\"');
+        const safeName = escapeAppleScript(playlist);
         const script = `
 tell application "Music"
   try
@@ -618,7 +622,7 @@ end tell`;
           playlist: string;
           shuffle?: boolean;
         };
-        const safeName = playlist.replace(/"/g, '\\"');
+        const safeName = escapeAppleScript(playlist);
         const script = `
 tell application "Music"
   try
@@ -641,7 +645,7 @@ end tell`;
           searchType = 'all',
           limit = 20,
         } = args as { query: string; searchType?: string; limit?: number };
-        const safeQuery = query.replace(/"/g, '\\"');
+        const safeQuery = escapeAppleScript(query);
         let script: string;
 
         if (searchType === 'songs' || searchType === 'all') {
@@ -715,8 +719,8 @@ end tell`;
 
       case 'music_play_song': {
         const { song, artist } = args as { song: string; artist?: string };
-        const safeSong = song.replace(/"/g, '\\"');
-        const safeArtist = artist ? artist.replace(/"/g, '\\"') : null;
+        const safeSong = escapeAppleScript(song);
+        const safeArtist = artist ? escapeAppleScript(artist) : null;
         const script = `
 tell application "Music"
   try
@@ -742,8 +746,8 @@ end tell`;
 
       case 'music_play_album': {
         const { album, artist } = args as { album: string; artist?: string };
-        const safeAlbum = album.replace(/"/g, '\\"');
-        const safeArtist = artist ? artist.replace(/"/g, '\\"') : null;
+        const safeAlbum = escapeAppleScript(album);
+        const safeArtist = artist ? escapeAppleScript(artist) : null;
         const script = `
 tell application "Music"
   try
@@ -771,7 +775,7 @@ end tell`;
           artist: string;
           shuffle?: boolean;
         };
-        const safeArtist = artist.replace(/"/g, '\\"');
+        const safeArtist = escapeAppleScript(artist);
         const script = `
 tell application "Music"
   try
@@ -793,8 +797,8 @@ end tell`;
 
       case 'music_add_to_queue': {
         const { song, artist } = args as { song: string; artist?: string };
-        const safeSong = song.replace(/"/g, '\\"');
-        const safeArtist = artist ? artist.replace(/"/g, '\\"') : null;
+        const safeSong = escapeAppleScript(song);
+        const safeArtist = artist ? escapeAppleScript(artist) : null;
         const script = `
 tell application "Music"
   try
