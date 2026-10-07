@@ -1,5 +1,7 @@
 # mcp-servers
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/somethingwithproof/mcp-servers/badge)](https://scorecard.dev/viewer/?uri=github.com/somethingwithproof/mcp-servers)
+
 Monorepo of Model Context Protocol servers.
 
 | Package | Source |
