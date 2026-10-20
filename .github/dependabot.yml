@@ -5,16 +5,39 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    commit-message:
+      prefix: "ci(deps)"
     groups:
       github-actions:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
   - package-ecosystem: "uv"
-    directories:
-      - "/packages/*"
+    directory: "/packages/ical"
     schedule:
       interval: "weekly"
+    commit-message:
+      prefix: "build(deps)"
     groups:
       python-dependencies:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+  # One lockfile at the root covers every workspace under packages/.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "build(deps)"
+    groups:
+      npm-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
