@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+// SPDX-License-Identifier: MIT
+
 import { describe, expect, it } from "vitest";
 import { TOOLS, handleToolCall } from "../handlers.js";
 

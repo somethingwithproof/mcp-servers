@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+// SPDX-License-Identifier: MIT
+
 import { type Tool } from "@modelcontextprotocol/sdk/types.js";
 import { execFile } from "child_process";
 import * as fs from "fs/promises";
