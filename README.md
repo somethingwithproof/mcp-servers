@@ -11,6 +11,7 @@ Monorepo of Model Context Protocol servers.
 | `packages/contacts` | Apple Contacts |
 | `packages/finder` | Apple Finder |
 | `packages/home` | Apple Home |
+| `packages/i18n` | Shared 20-locale Tier 1 i18n helper |
 | `packages/ical` | iCal (Python) |
 | `packages/imessage` | Apple iMessage |
 | `packages/maps` | Apple Maps |
@@ -26,6 +27,10 @@ Monorepo of Model Context Protocol servers.
 ## Layout
 
 npm workspaces for TypeScript packages. `packages/ical` uses uv/Python.
+
+## Localization
+
+`packages/i18n` (`@somethingwithproof/mcp-i18n`) provides a zero-dependency localization helper across 20 Broad Tier 1 locales (`en`, `de`, `es`, `fr`, `it`, `pt-BR`, `nl`, `ru`, `uk`, `ja`, `ko`, `zh-CN`, `zh-TW`, `ar`, `hi`, `pl`, `tr`, `sv`, `vi`, `id`) for CLI help, diagnostics, error messages, and localized metadata. Locale detection honors `LC_ALL`, `LC_MESSAGES`, and `LANG` (plus `--lang`), while defaulting to English so MCP tool schemas and default responses remain backward-compatible.
 
 ## Commands
 

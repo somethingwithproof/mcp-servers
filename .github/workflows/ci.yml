@@ -25,6 +25,7 @@ jobs:
           - contacts
           - finder
           - home
+          - i18n
           - imessage
           - maps
           - music
