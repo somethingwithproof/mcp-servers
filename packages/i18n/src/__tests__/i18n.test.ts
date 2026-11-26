@@ -19,8 +19,8 @@ const placeholders = (value: string) =>
   [...value.matchAll(PLACEHOLDER_RE)].map((m) => m[0]).sort();
 
 describe("@somethingwithproof/mcp-i18n", () => {
-  it("loads all 20 Tier 1 locales with 100% key and placeholder parity", () => {
-    expect(SUPPORTED_LOCALES).toHaveLength(20);
+  it("loads all 45 locales with 100% key and placeholder parity", () => {
+    expect(SUPPORTED_LOCALES).toHaveLength(45);
     const en = getCatalog("en");
     const enKeys = Object.keys(en).sort();
     expect(enKeys.length).toBeGreaterThan(0);
@@ -37,7 +37,7 @@ describe("@somethingwithproof/mcp-i18n", () => {
     }
   });
 
-  it("resolves POSIX and BCP-47 tags and flags Arabic as RTL", () => {
+  it("resolves POSIX and BCP-47 tags and flags all 6 RTL locales", () => {
     expect(resolveLocale("")).toBe("en");
     expect(resolveLocale("C")).toBe("en");
     expect(resolveLocale("POSIX")).toBe("en");
@@ -48,11 +48,25 @@ describe("@somethingwithproof/mcp-i18n", () => {
     expect(resolveLocale("zh_TW.UTF-8")).toBe("zh-TW");
     expect(resolveLocale("zh-Hant-HK")).toBe("zh-TW");
     expect(resolveLocale("ar_SA.UTF-8")).toBe("ar");
+    expect(resolveLocale("ar_EG.UTF-8")).toBe("ar-EG");
+    expect(resolveLocale("ar_MA.UTF-8")).toBe("ar-MA");
+    expect(resolveLocale("fr_SN.UTF-8")).toBe("fr-SN");
+    expect(resolveLocale("sw")).toBe("sw-KE");
+    expect(resolveLocale("yo_NG.UTF-8")).toBe("yo-NG");
+    expect(resolveLocale("fa_IR.UTF-8")).toBe("fa");
+    expect(resolveLocale("he_IL.UTF-8")).toBe("he");
+    expect(resolveLocale("iw")).toBe("he");
+    expect(resolveLocale("ur_PK.UTF-8")).toBe("ur");
+    expect(resolveLocale("tl_PH.UTF-8")).toBe("fil");
     expect(resolveLocale("hi_IN.UTF-8")).toBe("hi");
     expect(resolveLocale("xx_YY")).toBe("en");
+    expect(resolveLocale("constructor")).toBe("en");
+    expect(resolveLocale("toString")).toBe("en");
+    expect(resolveLocale("__proto__")).toBe("en");
 
+    const rtlLocales = new Set(["ar", "ar-EG", "ar-MA", "fa", "he", "ur"]);
     for (const locale of SUPPORTED_LOCALES) {
-      expect(isRtl(locale)).toBe(locale === "ar");
+      expect(isRtl(locale)).toBe(rtlLocales.has(locale));
     }
   });
 
@@ -74,6 +88,9 @@ describe("@somethingwithproof/mcp-i18n", () => {
   it("extracts --lang CLI overrides and formats localized help", () => {
     expect(extractLangFlag(["--lang", "uk"])).toBe("uk");
     expect(extractLangFlag(["--lang=zh-TW"])).toBe("zh-TW");
+    expect(extractLangFlag(["--lang=de", "--lang", "--", "--lang=fr"])).toBe(
+      "de",
+    );
     expect(extractLangFlag(["--help"])).toBeUndefined();
 
     const enTr = createTranslator("en");

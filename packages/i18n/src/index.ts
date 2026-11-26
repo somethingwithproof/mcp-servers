@@ -1,26 +1,51 @@
 // SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
 // SPDX-License-Identifier: MIT
 
+import afZA from "./locales/af-ZA.json" with { type: "json" };
+import amET from "./locales/am-ET.json" with { type: "json" };
 import ar from "./locales/ar.json" with { type: "json" };
+import arEG from "./locales/ar-EG.json" with { type: "json" };
+import arMA from "./locales/ar-MA.json" with { type: "json" };
+import bn from "./locales/bn.json" with { type: "json" };
 import de from "./locales/de.json" with { type: "json" };
 import en from "./locales/en.json" with { type: "json" };
 import es from "./locales/es.json" with { type: "json" };
+import fa from "./locales/fa.json" with { type: "json" };
+import fil from "./locales/fil.json" with { type: "json" };
 import fr from "./locales/fr.json" with { type: "json" };
+import frMA from "./locales/fr-MA.json" with { type: "json" };
+import frSN from "./locales/fr-SN.json" with { type: "json" };
+import haNG from "./locales/ha-NG.json" with { type: "json" };
+import he from "./locales/he.json" with { type: "json" };
 import hi from "./locales/hi.json" with { type: "json" };
 import id from "./locales/id.json" with { type: "json" };
+import igNG from "./locales/ig-NG.json" with { type: "json" };
 import it from "./locales/it.json" with { type: "json" };
 import ja from "./locales/ja.json" with { type: "json" };
 import ko from "./locales/ko.json" with { type: "json" };
+import mgMG from "./locales/mg-MG.json" with { type: "json" };
+import mr from "./locales/mr.json" with { type: "json" };
+import ms from "./locales/ms.json" with { type: "json" };
 import nl from "./locales/nl.json" with { type: "json" };
 import pl from "./locales/pl.json" with { type: "json" };
 import ptBR from "./locales/pt-BR.json" with { type: "json" };
 import ru from "./locales/ru.json" with { type: "json" };
+import rwRW from "./locales/rw-RW.json" with { type: "json" };
+import soSO from "./locales/so-SO.json" with { type: "json" };
 import sv from "./locales/sv.json" with { type: "json" };
+import swKE from "./locales/sw-KE.json" with { type: "json" };
+import ta from "./locales/ta.json" with { type: "json" };
+import te from "./locales/te.json" with { type: "json" };
+import th from "./locales/th.json" with { type: "json" };
 import tr from "./locales/tr.json" with { type: "json" };
 import uk from "./locales/uk.json" with { type: "json" };
+import ur from "./locales/ur.json" with { type: "json" };
 import vi from "./locales/vi.json" with { type: "json" };
+import xhZA from "./locales/xh-ZA.json" with { type: "json" };
+import yoNG from "./locales/yo-NG.json" with { type: "json" };
 import zhCN from "./locales/zh-CN.json" with { type: "json" };
 import zhTW from "./locales/zh-TW.json" with { type: "json" };
+import zuZA from "./locales/zu-ZA.json" with { type: "json" };
 
 export const SUPPORTED_LOCALES = [
   "en",
@@ -43,11 +68,38 @@ export const SUPPORTED_LOCALES = [
   "sv",
   "vi",
   "id",
+  "af-ZA",
+  "am-ET",
+  "ar-EG",
+  "ar-MA",
+  "fr-MA",
+  "fr-SN",
+  "ha-NG",
+  "ig-NG",
+  "mg-MG",
+  "rw-RW",
+  "so-SO",
+  "sw-KE",
+  "xh-ZA",
+  "yo-NG",
+  "zu-ZA",
+  "bn",
+  "fa",
+  "he",
+  "mr",
+  "ta",
+  "te",
+  "th",
+  "ur",
+  "ms",
+  "fil",
 ] as const;
 
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
 export type MessageKey = keyof typeof en;
 export type MessageCatalog = Record<MessageKey, string>;
+
+const RTL_LOCALES = new Set<Locale>(["ar", "ar-EG", "ar-MA", "fa", "he", "ur"]);
 
 export const LOCALE_NAMES: Record<Locale, string> = {
   en: "English",
@@ -70,6 +122,31 @@ export const LOCALE_NAMES: Record<Locale, string> = {
   sv: "Svenska",
   vi: "Tiếng Việt",
   id: "Bahasa Indonesia",
+  "af-ZA": "Afrikaans (Suid-Afrika)",
+  "am-ET": "አማርኛ (ኢትዮጵያ)",
+  "ar-EG": "العربية (مصر)",
+  "ar-MA": "العربية (المغرب)",
+  "fr-MA": "Français (Maroc)",
+  "fr-SN": "Français (Sénégal)",
+  "ha-NG": "Hausa (Najeriya)",
+  "ig-NG": "Igbo (Naịjịrịa)",
+  "mg-MG": "Malagasy (Madagasikara)",
+  "rw-RW": "Kinyarwanda (U Rwanda)",
+  "so-SO": "Soomaali (Soomaaliya)",
+  "sw-KE": "Kiswahili (Kenya)",
+  "xh-ZA": "isiXhosa (uMzantsi Afrika)",
+  "yo-NG": "Yorùbá (Nàìjíríà)",
+  "zu-ZA": "isiZulu (iNingizimu Afrika)",
+  bn: "বাংলা",
+  fa: "فارسی",
+  he: "עברית",
+  mr: "मराठी",
+  ta: "தமிழ்",
+  te: "తెలుగు",
+  th: "ไทย",
+  ur: "اردو",
+  ms: "Bahasa Melayu",
+  fil: "Filipino",
 };
 
 const CATALOGS: Record<Locale, MessageCatalog> = {
@@ -93,10 +170,53 @@ const CATALOGS: Record<Locale, MessageCatalog> = {
   sv,
   vi,
   id,
+  "af-ZA": afZA,
+  "am-ET": amET,
+  "ar-EG": arEG,
+  "ar-MA": arMA,
+  "fr-MA": frMA,
+  "fr-SN": frSN,
+  "ha-NG": haNG,
+  "ig-NG": igNG,
+  "mg-MG": mgMG,
+  "rw-RW": rwRW,
+  "so-SO": soSO,
+  "sw-KE": swKE,
+  "xh-ZA": xhZA,
+  "yo-NG": yoNG,
+  "zu-ZA": zuZA,
+  bn,
+  fa,
+  he,
+  mr,
+  ta,
+  te,
+  th,
+  ur,
+  ms,
+  fil,
+};
+
+const BASE_ALIASES: Record<string, Locale> = {
+  af: "af-ZA",
+  am: "am-ET",
+  ha: "ha-NG",
+  ig: "ig-NG",
+  in: "id",
+  iw: "he",
+  mg: "mg-MG",
+  pt: "pt-BR",
+  rw: "rw-RW",
+  so: "so-SO",
+  sw: "sw-KE",
+  tl: "fil",
+  xh: "xh-ZA",
+  yo: "yo-NG",
+  zu: "zu-ZA",
 };
 
 export function isRtl(locale: string): boolean {
-  return resolveLocale(locale) === "ar";
+  return RTL_LOCALES.has(resolveLocale(locale));
 }
 
 export function resolveLocale(tag: string | null | undefined): Locale {
@@ -123,7 +243,6 @@ export function resolveLocale(tag: string | null | undefined): Locale {
   ) {
     return "zh-CN";
   }
-  if (lower === "pt" || lower === "pt-br") return "pt-BR";
 
   for (const loc of SUPPORTED_LOCALES) {
     if (loc.toLowerCase() === lower) return loc;
@@ -131,8 +250,9 @@ export function resolveLocale(tag: string | null | undefined): Locale {
 
   const base = lower.split("-")[0] ?? "";
   if (base === "zh") {
+    if (lower.includes("-hans")) return "zh-CN";
     if (
-      lower.includes("hant") ||
+      lower.includes("-hant") ||
       lower.includes("-tw") ||
       lower.includes("-hk") ||
       lower.includes("-mo")
@@ -141,7 +261,9 @@ export function resolveLocale(tag: string | null | undefined): Locale {
     }
     return "zh-CN";
   }
-  if (base === "pt") return "pt-BR";
+  if (Object.hasOwn(BASE_ALIASES, base)) {
+    return BASE_ALIASES[base] ?? "en";
+  }
 
   for (const loc of SUPPORTED_LOCALES) {
     if (loc.toLowerCase() === base) return loc;
@@ -165,16 +287,22 @@ export function detectLocale(env: NodeJS.ProcessEnv = process.env): Locale {
  * Extracts an optional --lang <locale> or --lang=<locale> CLI override.
  */
 export function extractLangFlag(argv: readonly string[]): string | undefined {
+  let lang: string | undefined;
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
+    if (arg === "--") break;
     if (arg === "--lang" && i + 1 < argv.length) {
-      return argv[i + 1];
+      const next = argv[i + 1];
+      if (next === "--") break;
+      lang = next;
+      i += 1;
+      continue;
     }
     if (arg?.startsWith("--lang=")) {
-      return arg.slice("--lang=".length);
+      lang = arg.slice("--lang=".length);
     }
   }
-  return undefined;
+  return lang;
 }
 
 export function getCatalog(locale: Locale = "en"): MessageCatalog {
