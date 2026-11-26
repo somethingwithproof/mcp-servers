@@ -189,13 +189,15 @@ export function t(
   const resolved = locale ? resolveLocale(locale) : detectLocale();
   const catalog = CATALOGS[resolved] as Record<string, string>;
   const fallback = CATALOGS.en as Record<string, string>;
-  let template = catalog[key] ?? fallback[key] ?? key;
-  if (params) {
-    for (const [name, value] of Object.entries(params)) {
-      template = template.replaceAll(`{${name}}`, String(value));
-    }
-  }
-  return template;
+  const template = Object.hasOwn(catalog, key)
+    ? catalog[key]
+    : Object.hasOwn(fallback, key)
+      ? fallback[key]
+      : key;
+  if (!params) return template;
+  return template.replace(/\{([a-zA-Z0-9_]+)\}/g, (match, name: string) =>
+    Object.hasOwn(params, name) ? String(params[name]) : match,
+  );
 }
 
 export interface Translator {
