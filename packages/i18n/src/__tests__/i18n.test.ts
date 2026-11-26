@@ -60,6 +60,9 @@ describe("@somethingwithproof/mcp-i18n", () => {
     expect(resolveLocale("tl_PH.UTF-8")).toBe("fil");
     expect(resolveLocale("hi_IN.UTF-8")).toBe("hi");
     expect(resolveLocale("xx_YY")).toBe("en");
+    expect(resolveLocale("constructor")).toBe("en");
+    expect(resolveLocale("toString")).toBe("en");
+    expect(resolveLocale("__proto__")).toBe("en");
 
     const rtlLocales = new Set(["ar", "ar-EG", "ar-MA", "fa", "he", "ur"]);
     for (const locale of SUPPORTED_LOCALES) {
@@ -85,6 +88,9 @@ describe("@somethingwithproof/mcp-i18n", () => {
   it("extracts --lang CLI overrides and formats localized help", () => {
     expect(extractLangFlag(["--lang", "uk"])).toBe("uk");
     expect(extractLangFlag(["--lang=zh-TW"])).toBe("zh-TW");
+    expect(extractLangFlag(["--lang=de", "--lang", "--", "--lang=fr"])).toBe(
+      "de",
+    );
     expect(extractLangFlag(["--help"])).toBeUndefined();
 
     const enTr = createTranslator("en");

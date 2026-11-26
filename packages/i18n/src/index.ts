@@ -261,8 +261,9 @@ export function resolveLocale(tag: string | null | undefined): Locale {
     }
     return "zh-CN";
   }
-  const aliased = BASE_ALIASES[base];
-  if (aliased) return aliased;
+  if (Object.hasOwn(BASE_ALIASES, base)) {
+    return BASE_ALIASES[base] ?? "en";
+  }
 
   for (const loc of SUPPORTED_LOCALES) {
     if (loc.toLowerCase() === base) return loc;
@@ -291,7 +292,9 @@ export function extractLangFlag(argv: readonly string[]): string | undefined {
     const arg = argv[i];
     if (arg === "--") break;
     if (arg === "--lang" && i + 1 < argv.length) {
-      lang = argv[i + 1];
+      const next = argv[i + 1];
+      if (next === "--") break;
+      lang = next;
       i += 1;
       continue;
     }
