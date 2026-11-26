@@ -1,7 +1,7 @@
 {
   "name": "@somethingwithproof/mcp-i18n",
   "version": "1.0.0",
-  "description": "Zero-dependency 45-locale i18n helper for macOS MCP servers",
+  "description": "Zero-dependency 48-locale i18n helper for macOS MCP servers",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
