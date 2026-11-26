@@ -7,6 +7,7 @@ import ar from "./locales/ar.json" with { type: "json" };
 import arEG from "./locales/ar-EG.json" with { type: "json" };
 import arMA from "./locales/ar-MA.json" with { type: "json" };
 import bn from "./locales/bn.json" with { type: "json" };
+import bs from "./locales/bs.json" with { type: "json" };
 import de from "./locales/de.json" with { type: "json" };
 import en from "./locales/en.json" with { type: "json" };
 import es from "./locales/es.json" with { type: "json" };
@@ -18,6 +19,7 @@ import frSN from "./locales/fr-SN.json" with { type: "json" };
 import haNG from "./locales/ha-NG.json" with { type: "json" };
 import he from "./locales/he.json" with { type: "json" };
 import hi from "./locales/hi.json" with { type: "json" };
+import hr from "./locales/hr.json" with { type: "json" };
 import id from "./locales/id.json" with { type: "json" };
 import igNG from "./locales/ig-NG.json" with { type: "json" };
 import it from "./locales/it.json" with { type: "json" };
@@ -32,6 +34,7 @@ import ptBR from "./locales/pt-BR.json" with { type: "json" };
 import ru from "./locales/ru.json" with { type: "json" };
 import rwRW from "./locales/rw-RW.json" with { type: "json" };
 import soSO from "./locales/so-SO.json" with { type: "json" };
+import sr from "./locales/sr.json" with { type: "json" };
 import sv from "./locales/sv.json" with { type: "json" };
 import swKE from "./locales/sw-KE.json" with { type: "json" };
 import ta from "./locales/ta.json" with { type: "json" };
@@ -93,6 +96,9 @@ export const SUPPORTED_LOCALES = [
   "ur",
   "ms",
   "fil",
+  "bs",
+  "hr",
+  "sr",
 ] as const;
 
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
@@ -147,6 +153,9 @@ export const LOCALE_NAMES: Record<Locale, string> = {
   ur: "اردو",
   ms: "Bahasa Melayu",
   fil: "Filipino",
+  bs: "Bosanski",
+  hr: "Hrvatski",
+  sr: "Српски",
 };
 
 const CATALOGS: Record<Locale, MessageCatalog> = {
@@ -195,6 +204,9 @@ const CATALOGS: Record<Locale, MessageCatalog> = {
   ur,
   ms,
   fil,
+  bs,
+  hr,
+  sr,
 };
 
 const BASE_ALIASES: Record<string, Locale> = {
